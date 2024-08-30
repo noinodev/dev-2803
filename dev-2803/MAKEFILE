@@ -1,0 +1,38 @@
+ompiler and flags
+CC = gcc
+CFLAGS = -Iinclude -Wall -Wextra -Werror
+
+# Directories
+# SRC_DIR = src
+# OBJ_DIR = obj
+# INC_DIR = include
+#
+# # Source files
+# SRCS = $(wildcard $(SRC_DIR)/*.c)
+#
+# # Object files (in the obj directory)
+# OBJS = $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
+#
+# # Target executable
+# TARGET = my_program
+#
+# # Default target
+# all: $(TARGET)
+#
+# # Linking the target executable
+# $(TARGET): $(OBJS)
+# 	$(CC) $(OBJS) -o $(TARGET)
+#
+# 	# Compiling source files to object files
+# 	$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(INC_DIR)/%.h | $(OBJ_DIR)
+# 		$(CC) $(CFLAGS) -c $< -o $@
+#
+# 		# Create the obj directory if it doesn't exist
+# 		$(OBJ_DIR):
+# 			mkdir -p $(OBJ_DIR)
+#
+# 			# Clean up generated files
+# 			clean:
+# 				rm -rf $(OBJ_DIR) $(TARGET)
+#
+# 				.PHONY: all clean
