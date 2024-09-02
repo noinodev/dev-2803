@@ -1,6 +1,8 @@
 #ifndef COMMANDS_H
 #define COMMANDS_H
 
+#define PUT_LIM 8
+
 void cmd_calculate(char* tokens);
 void cmd_time(char* tokens);
 void cmd_path(char* tokens);

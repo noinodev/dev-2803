@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <sys/utsname.h>
 #include <ftw.h>
 
 const cmd commands[] = {
@@ -23,7 +24,7 @@ const cmd commands[] = {
 double cal(char* tokens){
 	char* arg = strtok(NULL," ");
 	if(arg == NULL){
-		printf("Invalid expression\n");
+		printf("invalid syntax, should be 'calculate [expr.]'. use 'help' to see example usage\n");
 		return 0;
 	}
 	if(strcmp(arg,"+") == 0) return cal(tokens) + cal(tokens);
@@ -49,25 +50,38 @@ void cmd_path(char* tokens){
 }
 
 void cmd_sys(char* tokens){
-
+	struct utsname buffer;
+	uname(&buffer);
+	printf("os: %s\nver: %s(%s)\ncpu: %s\n",buffer.sysname,buffer.release,buffer.version,buffer.machine);
 }
 
 void cmd_put(char* tokens){
-	char 
-	*dirname = strtok(NULL," "),
-	*fbuff[8];
+	char *dirname = strtok(NULL," "), *fbuff[PUT_LIM]; // hard limit on files to read because i say so
 	int filecount = 0, overwrite = 0;
 	//extract filenames from input buffer
-	for(char* tok = strtok(NULL," "); tok != NULL; tok = strtok(NULL," ")){ // hard limit on file count because i say so
+	if(dirname == NULL){
+		printf("invalid syntax, should be 'put [directory] [filename(s)] [-f]'\n");
+		return;
+	}
+	for(char* tok = strtok(NULL," "); tok != NULL; tok = strtok(NULL," ")){
 		if(strcmp(tok,"-f") == 0) overwrite = 1;
-		else{
-            if(fcheck(tok) == 0) return;
+		else if(filecount < PUT_LIM){
+            if(fcheck(tok) == 0){
+				printf("file '%s' does not exist\n",tok);
+				continue;
+			}
 			fbuff[filecount] = tok;
 			filecount++;
-		}
+		}else break;
+	}
+
+	if(filecount == 0){
+		printf("no valid files in args\n");
+		return;
 	}
 
     if(fcheck(dirname) && overwrite == 1) nftw(dirname, unlink_cb, 64, FTW_DEPTH | FTW_PHYS);
+	else if(overwrite == 1) printf("you used -f flag, but you didn't need to. should be careful with that.\n");
     if(mkdir(dirname,0777) == 0 && fcheck(dirname)){
         for(int i = 0; i < filecount; i++){
 			char dest[80];
@@ -78,7 +92,12 @@ void cmd_put(char* tokens){
 }
 
 void cmd_get(char* tokens){
-
+	char *fname = strtok(NULL," ");
+	if(fname == NULL){
+		printf("invalid syntax, should be 'get [filename]'\n");
+		return;
+	}
+	fcat(fname);
 }
 
 void cmd_quit(char* tokens){

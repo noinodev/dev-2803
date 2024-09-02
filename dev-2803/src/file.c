@@ -13,19 +13,15 @@ int fcpy(const char* source, const char* destination) {
     FILE *src, *dest;
     char ch;
 
-    if(fcheck(source) == 0){
-        perror("something wrong with the source file. probably doesn't exist");
-        return -1;
-    }
     src = fopen(source, "rb");
     if (src == NULL) {
-        perror("different error with the source file");
+        perror("source file failed to open");
         return -1;
     }
 
     dest = fopen(destination, "wb");
     if (dest == NULL) {
-        perror("different error with destination file");
+        perror("destination file failed to open");
         fclose(src);
         return -1;
     }
@@ -36,11 +32,36 @@ int fcpy(const char* source, const char* destination) {
     return 0;
 }
 
+int fcat(const char* src){
+    char buffer[512];
+    FILE* file = fopen(src,"r");
+	int lines = 0;
+	if(file == NULL){
+		perror("error opening file");
+		return -1;
+	}
+	while(fgets(buffer,sizeof(buffer),file)){
+		printf("%i : %s",lines,buffer);
+		lines++;
+		if (lines%30 == 0) {
+            printf("Continue? (y/n) ");
+            int c = getchar();
+            while ((c != '\n') && (getchar() != '\n')); // clear input buffer
+            if (c == 'n' || c == 'N') break;
+        }
+	}
+	printf("\n");
+	fclose(file);
+    return 0;
+}
+
 int unlink_cb(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf){
     return remove(fpath);
 }
 
-/*int fclear(const char* dir){ // orange you glad i didnt use this ! :)
+// orange you glad i didnt use this ! :)
+
+/*int fclear(const char* dir){
     char command[64];
     snprintf(command, sizeof(command), "rm -rf %s", dir);
     system(command);

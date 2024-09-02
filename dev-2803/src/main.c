@@ -10,16 +10,18 @@ int main(){
         input[strcspn(input, "\n")] = 0;
 		char* tokens = strtok(input," ");
 
-		int i = 0, cmdlist = sizeof(commands)/sizeof(cmd);
-		for(; i <= cmdlist; i++){
-			if(i == cmdlist){
-				printf("Unknown command '%s'\nType 'help' for list of commands\n",tokens);
-				break;
-			}else if(strcmp(tokens,commands[i].command) == 0){
-				commands[i].function(tokens);
-				break;
+		if(tokens != NULL){
+			int i = 0, cmdlist = sizeof(commands)/sizeof(cmd);
+			for(; i <= cmdlist; i++){
+				if(i == cmdlist){
+					printf("Unknown command '%s'\nType 'help' for list of commands\n",tokens);
+					break;
+				}else if(strcmp(tokens,commands[i].command) == 0){
+					commands[i].function(tokens);
+					break;
+				}
 			}
-		}
+		}else printf("why would you do that\n");
 	}
 	return 1;
 }

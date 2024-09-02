@@ -5,6 +5,7 @@
         "commands.h": "c",
         "stdlib.h": "c",
         "time.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "file.h": "c"
     }
 }
