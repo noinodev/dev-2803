@@ -6,6 +6,7 @@ _viminfo
 .profile
 a.exe
 nanoworld
+nanoworld.c
 server.c
 dev-2803/hellovim.c
 dev-2803/.vscode
