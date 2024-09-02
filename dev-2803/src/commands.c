@@ -18,24 +18,28 @@ const cmd commands[] = {
 	{"put", " dirname filename(s) [-f] - make a new directory and copy file(s) to it. if directory exists, flag -f will overwrite the directory and its contents. example usage: 'put newfolder  file.txt file2.txt -f'", cmd_put},
 	{"get", " filename - print contents of file 30 lines at a time", cmd_get},
 	{"quit", " - exit program", cmd_quit},
-	{"help", " - see list of commands", cmd_help},
+	{"help", " - see list of commands", cmd_help}, // for fun
 };
 
-double cal(char* tokens){
+double cal(char* tokens, int depth){
 	char* arg = strtok(NULL," ");
 	if(arg == NULL){
 		printf("invalid syntax, should be 'calculate [expr.]'. use 'help' to see example usage\n");
 		return 0;
 	}
-	if(strcmp(arg,"+") == 0) return cal(tokens) + cal(tokens);
-	if(strcmp(arg,"-") == 0) return cal(tokens) - cal(tokens);
-	if(strcmp(arg,"*") == 0) return cal(tokens) * cal(tokens);
-	if(strcmp(arg,"/") == 0) return cal(tokens) / cal(tokens);
+	if(depth >= 1000){ // i didnt really need this because the input buffer cant ever be that long, but just in case
+		printf("this is an absurdly long expression, and if it hasn't hit the stack limit yet, it's about to. how did you even manage that?\n");
+		return 0;
+	}
+	if(strcmp(arg,"+") == 0) return cal(tokens,depth+1) + cal(tokens,depth+1);
+	if(strcmp(arg,"-") == 0) return cal(tokens,depth+1) - cal(tokens,depth+1);
+	if(strcmp(arg,"*") == 0) return cal(tokens,depth+1) * cal(tokens,depth+1);
+	if(strcmp(arg,"/") == 0) return cal(tokens,depth+1) / cal(tokens,depth+1);
 	return atof(arg);
 }
 
 void cmd_calculate(char* tokens){
-	printf("%i\n",(int)cal(tokens)); // couldnt decide if i wanted float calculation or not but this will be fine
+	printf("%i\n",(int)cal(tokens,0)); // couldnt decide if i wanted float calculation or not but this will be fine
 }
 
 void cmd_time(char* tokens){
@@ -45,7 +49,7 @@ void cmd_time(char* tokens){
 }
 
 void cmd_path(char* tokens){
-	char cwd[256];
+	char cwd[PATH_MAX];
 	printf("%s\n",getcwd(cwd,sizeof(cwd)));
 }
 
@@ -67,7 +71,7 @@ void cmd_put(char* tokens){
 		if(strcmp(tok,"-f") == 0) overwrite = 1;
 		else if(filecount < PUT_LIM){
             if(fcheck(tok) == 0){
-				printf("file '%s' does not exist\n",tok);
+				printf("file '%s' does not exist.\n",tok);
 				continue;
 			}
 			fbuff[filecount] = tok;
@@ -76,16 +80,20 @@ void cmd_put(char* tokens){
 	}
 
 	if(filecount == 0){
-		printf("no valid files in args\n");
+		printf("no valid files in args. check your directories?\n");
 		return;
 	}
 
     if(fcheck(dirname) && overwrite == 1) nftw(dirname, unlink_cb, 64, FTW_DEPTH | FTW_PHYS);
-	else if(overwrite == 1) printf("you used -f flag, but you didn't need to. should be careful with that.\n");
-    if(mkdir(dirname,0777) == 0 && fcheck(dirname)){
+	else if(overwrite == 1) printf("you used the -f flag, but you didn't need to. should be careful with that.\n");
+    if(mkdir(dirname,0777) == 0){
         for(int i = 0; i < filecount; i++){
-			char dest[80];
-            snprintf(dest,sizeof(dest),"%s/%s",dirname,fbuff[i]);
+			char dest[128];
+            int t = snprintf(dest,sizeof(dest),"%s/%s",dirname,fbuff[i]);
+			if(t > 0){
+				printf("this file is really long, and it was truncated. maybe don't?: '%s'\n",dest);
+				continue;
+			}
             fcpy(fbuff[i],dest);
         }
     }else printf("folder '%s/' exists and cannot be overwritten. use flag -f to overwrite target directory.\n",dirname);
@@ -106,7 +114,5 @@ void cmd_quit(char* tokens){
 }
 
 void cmd_help(char* tokens){
-	for(int i = 0; i < sizeof(commands)/sizeof(cmd); i++){
-		printf(" %s%s\n",commands[i].command,commands[i].desc);
-	}
+	for(int i = 0; i < sizeof(commands)/sizeof(cmd); i++) printf(" %s%s\n",commands[i].command,commands[i].desc);
 }

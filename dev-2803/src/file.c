@@ -14,19 +14,19 @@ int fcpy(const char* source, const char* destination) {
     char ch;
 
     src = fopen(source, "rb");
-    if (src == NULL) {
+    if (src == NULL){
         perror("source file failed to open");
         return -1;
     }
 
     dest = fopen(destination, "wb");
-    if (dest == NULL) {
+    if (dest == NULL){
         perror("destination file failed to open");
         fclose(src);
         return -1;
     }
 
-    while ((ch = fgetc(src)) != EOF) fputc(ch, dest);
+    while((ch = fgetc(src)) != EOF) fputc(ch, dest);
     fclose(src);
     fclose(dest);
     return 0;

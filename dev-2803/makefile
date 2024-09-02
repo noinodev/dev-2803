@@ -3,11 +3,11 @@ SRCDIR = src/
 OBJDIR = out/
 BINDIR = bin/
 TARGET = Assignment1P1-Nathanburg
-TARGET = $(BINDIR)wow
+LOCAL = $(BINDIR)wow
 SRC = $(OBJDIR)main.o $(OBJDIR)commands.o $(OBJDIR)file.o
 DIR = /usr/local/bin
 
-$(TARGET): $(SRC)
+$(LOCAL): $(SRC)
 	gcc $(SRC) -o $(TARGET)
 
 $(OBJDIR)main.o: $(SRCDIR)main.c
@@ -32,4 +32,4 @@ uninstall:
 	@echo "done."
 
 clean:
-	rm $(OBJDIR)*.o $(TARGET)
+	rm $(OBJDIR)*.o $(LOCAL)
