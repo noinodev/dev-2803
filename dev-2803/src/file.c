@@ -59,7 +59,7 @@ int unlink_cb(const char *fpath, const struct stat *sb, int typeflag, struct FTW
     return remove(fpath);
 }
 
-// orange you glad i didnt use this ! :)
+// orange you glad i didnt use this ! :) :)
 
 /*int fclear(const char* dir){
     char command[64];
