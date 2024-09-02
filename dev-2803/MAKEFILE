@@ -1,38 +1,35 @@
-ompiler and flags
-CC = gcc
-CFLAGS = -Iinclude -Wall -Wextra -Werror
 
-# Directories
-# SRC_DIR = src
-# OBJ_DIR = obj
-# INC_DIR = include
-#
-# # Source files
-# SRCS = $(wildcard $(SRC_DIR)/*.c)
-#
-# # Object files (in the obj directory)
-# OBJS = $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
-#
-# # Target executable
-# TARGET = my_program
-#
-# # Default target
-# all: $(TARGET)
-#
-# # Linking the target executable
-# $(TARGET): $(OBJS)
-# 	$(CC) $(OBJS) -o $(TARGET)
-#
-# 	# Compiling source files to object files
-# 	$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(INC_DIR)/%.h | $(OBJ_DIR)
-# 		$(CC) $(CFLAGS) -c $< -o $@
-#
-# 		# Create the obj directory if it doesn't exist
-# 		$(OBJ_DIR):
-# 			mkdir -p $(OBJ_DIR)
-#
-# 			# Clean up generated files
-# 			clean:
-# 				rm -rf $(OBJ_DIR) $(TARGET)
-#
-# 				.PHONY: all clean
+SRCDIR = src/
+OBJDIR = out/
+BINDIR = bin/
+TARGET = Assignment1P1-Nathanburg
+TARGET = $(BINDIR)wow
+SRC = $(OBJDIR)main.o $(OBJDIR)commands.o $(OBJDIR)file.o
+DIR = /usr/local/bin
+
+$(TARGET): $(SRC)
+	gcc $(SRC) -o $(TARGET)
+
+$(OBJDIR)main.o: $(SRCDIR)main.c
+	gcc -c $(SRCDIR)main.c -o $(OBJDIR)main.o
+
+$(OBJDIR)commands.o: $(SRCDIR)commands.c $(SRCDIR)commands.h
+	gcc -c $(SRCDIR)commands.c -o $(OBJDIR)commands.o
+	
+$(OBJDIR)file.o: $(SRCDIR)file.c $(SRCDIR)file.h
+	gcc -c $(SRCDIR)file.c -o $(OBJDIR)file.o
+
+install:
+	@echo "building and installing $(TARGET) at $(DIR)"
+	@make
+	@echo "build completed"
+	@cp $(TARGET) $(DIR)
+	@echo "done."
+
+uninstall:
+	@echo "uninstalling"
+	@rm -f $(DIR)/$(TARGET)
+	@echo "done."
+
+clean:
+	rm $(OBJDIR)*.o $(TARGET)
