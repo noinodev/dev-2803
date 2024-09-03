@@ -1,12 +1,16 @@
 #include "commands.h"
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+
+const char* cool[] = {"why would you do that","that's definitely not a command.","have you tried 'help'?","what are you trying to achieve?","...","maybe stop that?","this hurts the shell","do i need to do the commands for you? rm -rf .","perchance"};
 
 int main(){
-	char input[64];
+	char input[BUFFER_MAX];
 	while(1){
 		printf("> ");
 		fgets(input, sizeof(input), stdin);
+		while(getchar() != '\n'); // clear input buffer because the tokens can overflow which is not good
         input[strcspn(input, "\n")] = 0;
 		char* tokens = strtok(input," ");
 
@@ -21,7 +25,7 @@ int main(){
 					break;
 				}
 			}
-		}else printf("why would you do that\n");
+		}else printf("%s\n",cool[random()%(sizeof(cool)/sizeof(char*))]);
 	}
 	return 1;
 }

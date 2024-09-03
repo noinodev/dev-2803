@@ -24,18 +24,25 @@ const cmd commands[] = {
 double cal(char* tokens, int depth){
 	char* arg = strtok(NULL," ");
 	if(arg == NULL){
-		printf("invalid syntax, should be 'calculate [expr.]'. use 'help' to see example usage\n");
+		printf("invalid syntax. should be 'calculate [expr.]'. use 'help' to see example usage\n");
 		return 0;
 	}
 	if(depth >= 1000){ // i didnt really need this because the input buffer cant ever be that long, but just in case
-		printf("this is an absurdly long expression, and if it hasn't hit the stack limit yet, it's about to. how did you even manage that?\n");
+		printf("invalid syntax. this is an absurdly long expression, and if it hasn't hit the stack limit yet, it's about to. how did you even manage that?\n");
 		return 0;
 	}
 	if(strcmp(arg,"+") == 0) return cal(tokens,depth+1) + cal(tokens,depth+1);
 	if(strcmp(arg,"-") == 0) return cal(tokens,depth+1) - cal(tokens,depth+1);
-	if(strcmp(arg,"*") == 0) return cal(tokens,depth+1) * cal(tokens,depth+1);
+	if(strcmp(arg,"*") == 0) return cal(tokens,depth+1) * cal(tokens,depth+1); // dont think i needed * or / but it was trivial
 	if(strcmp(arg,"/") == 0) return cal(tokens,depth+1) / cal(tokens,depth+1);
-	return atof(arg);
+	char *errptr;
+	double out = strtod(arg,&errptr);
+	//printf("%s is %c\n",arg,*errptr);
+	if(*errptr != '\0'){
+		printf("whatever this argument '%s' is, it's not valid. it's not a number or a valid operator.\n",arg);
+		return 0;
+	}
+	return out;
 }
 
 void cmd_calculate(char* tokens){
@@ -88,9 +95,9 @@ void cmd_put(char* tokens){
 	else if(overwrite == 1) printf("you used the -f flag, but you didn't need to. should be careful with that.\n");
     if(mkdir(dirname,0777) == 0){
         for(int i = 0; i < filecount; i++){
-			char dest[128];
+			char dest[BUFFER_MAX];
             int t = snprintf(dest,sizeof(dest),"%s/%s",dirname,fbuff[i]);
-			if(t > 0){
+			if(t >= BUFFER_MAX){
 				printf("this file is really long, and it was truncated. maybe don't?: '%s'\n",dest);
 				continue;
 			}

@@ -2,6 +2,7 @@
 #define COMMANDS_H
 
 #define PUT_LIM 8
+#define BUFFER_MAX 128
 
 void cmd_calculate(char* tokens);
 void cmd_time(char* tokens);

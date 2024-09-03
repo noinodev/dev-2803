@@ -8,7 +8,7 @@ SRC = $(OBJDIR)main.o $(OBJDIR)commands.o $(OBJDIR)file.o
 DIR = /usr/local/bin
 
 $(LOCAL): $(SRC)
-	gcc $(SRC) -o $(TARGET)
+	gcc $(SRC) -o $(LOCAL)
 
 $(OBJDIR)main.o: $(SRCDIR)main.c
 	gcc -c $(SRCDIR)main.c -o $(OBJDIR)main.o
@@ -23,7 +23,7 @@ install:
 	@echo "building and installing $(TARGET) at $(DIR)"
 	@make
 	@echo "build completed"
-	@cp $(TARGET) $(DIR)
+	@cp $(TARGET) $(DIR)/$(TARGET)
 	@echo "done."
 
 uninstall:

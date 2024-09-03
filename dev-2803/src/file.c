@@ -33,7 +33,7 @@ int fcpy(const char* source, const char* destination) {
 }
 
 int fcat(const char* src){
-    char buffer[512];
+    char buffer[BUFFER_LINE_MAX];
     FILE* file = fopen(src,"r");
 	int lines = 0;
 	if(file == NULL){
