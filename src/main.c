@@ -10,7 +10,6 @@ int main(){
 	while(1){
 		printf("> ");
 		fgets(input, sizeof(input), stdin);
-		while(getchar() != '\n'); // clear input buffer because the tokens can overflow which is not good
         input[strcspn(input, "\n")] = 0;
 		char* tokens = strtok(input," ");
 

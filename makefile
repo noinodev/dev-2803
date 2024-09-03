@@ -3,7 +3,7 @@ SRCDIR = src/
 OBJDIR = out/
 BINDIR = bin/
 TARGET = Assignment1P1-Nathanburg
-LOCAL = $(BINDIR)wow
+LOCAL = $(BINDIR)a
 SRC = $(OBJDIR)main.o $(OBJDIR)commands.o $(OBJDIR)file.o
 DIR = /usr/local/bin
 
