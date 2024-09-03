@@ -1,14 +1,2 @@
-_viminfo
-.bash_history
-.bash_profile
-.bashrc
-.inputrc
-.profile
-a.exe
-nanoworld
-nanoworld.c
-server.c
-dev-2803/hellovim.c
-dev-2803/.vscode/
-dev-2803/out/
-dev-2803/bin/
+.*
+
