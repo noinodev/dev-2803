@@ -86,18 +86,20 @@ int send_all(threadcommon* common, void* buffer, int target, int rule){
 
 void* handle_client(threadcommon* common, void* arg) {
     int socket = *((int*)arg);
-    void* buffer_send[PACKET_MAX];
-    void* buffer_recv[PACKET_MAX];
+    char buffer_send[PACKET_MAX];
+    char buffer_recv[PACKET_MAX];
     int read_size, thread_terminate = 0;
 
     printf("client thread is active\n");
 
     pthread_mutex_lock(&common->lock);
     if(common->state == GAME_STATE_WAIT){
-        packet_move packet_send;
-        packet_send.header = HEADER_MOVE;
-        packet_send.move = common->val;
-        memcpy(buffer_send,(void*)&packet_send,sizeof(packet_send));
+        //packet_move packet_send;
+        //packet_send.header = HEADER_MOVE;
+        //packet_send.move = common->val;
+        buffer_send[0] = (char)HEADER_MOVE;
+        buffer_send[1] = (char)common->val;
+        //memcpy(buffer_send,(void*)&packet_send,sizeof(packet_send));
         //network_send_raw(common,buffer_send,socket,NETWORK_TARGET_TO);
         send(socket,buffer_send,PACKET_MAX,0);
         common->state = GAME_STATE_GO;
@@ -116,47 +118,52 @@ void* handle_client(threadcommon* common, void* arg) {
             break;
         }
         buffer_recv[res-sizeof(char)] = '\0';
-        uint8_t *header = (uint8_t*)buffer_recv;
-        printf("header %i\n",*header);
-        if(*header == HEADER_TEXT){
-            char* txt = (char*)(buffer_recv+sizeof(uint8_t));
+        char header = buffer_recv[0];
+        if(header == HEADER_TEXT){
+            char* txt = (char*)(buffer_recv+sizeof(char));
             printf("client says %s\n",txt);
-            buffer_send[0] = (void*)HEADER_TEXT;
-            memcpy(buffer_send+sizeof(uint8_t), txt, strlen(txt)+1);
+            buffer_send[0] = HEADER_TEXT;
+            memcpy(buffer_send+sizeof(char), txt, strlen(txt)+1);
             send_all(common,buffer_send,socket,NETWORK_TARGET_EXCEPT);
-        }else if(*header == HEADER_MOVE){
+        }else if(header == HEADER_MOVE){
             pthread_mutex_lock(&common->lock);
-            packet_move* packet_recv = (packet_move*)buffer_recv;
-            common->val -= packet_recv->move;
+            //packet_move* packet_recv = (packet_move*)buffer_recv;
+            //common->val -= packet_recv->move;
+            common->val -= buffer_recv[1];
             printf("state value now %i\n",common->val);
 
             if(common->val > 0){
-                packet_move packet_send;
-                packet_send.header = HEADER_MOVE;
-                packet_send.move = common->val;
-                memcpy(buffer_send,(void*)&packet_send,sizeof(packet_send));
+                //packet_move packet_send;
+                //packet_send.header = HEADER_MOVE;
+                //packet_send.move = common->val;
+                //memcpy(buffer_send,(void*)&packet_send,sizeof(packet_send));
+                buffer_send[0] = HEADER_MOVE;
+                buffer_send[1] = common->val;
                 send(common->sockets[(common->turn++)%common->socketcount],buffer_send,PACKET_MAX,0);
             }else{
                 char* txt;
                 txt = "you win :)";
-                buffer_send[0] = (void*)HEADER_TEXT;
+                buffer_send[0] = (char)HEADER_TEXT;
                 memcpy(buffer_send+sizeof(uint8_t), txt, strlen(txt)+1);
                 send(socket,buffer_send,PACKET_MAX,0);
 
                 txt = "you lose :(";
-                buffer_send[0] = (void*)HEADER_TEXT;
+                buffer_send[0] = HEADER_TEXT;
                 memcpy(buffer_send+sizeof(uint8_t), txt, strlen(txt)+1);
                 send_all(common,buffer_send,socket,NETWORK_TARGET_EXCEPT);
 
                 common->all_terminate = 1;
+
+                buffer_send[0] = HEADER_END;
+                send_all(common,buffer_send,socket,NETWORK_TARGET_ALL);
             }
             pthread_mutex_unlock(&common->lock);
             //network_send_raw(common,buffer_send,socket,NETWORK_TARGET_TO);
-        }else if(*header == HEADER_END){
+        }else if(header == HEADER_END){
             printf("client say byebye\n");
             break;
         }else{
-            printf("client )
+            printf("client bad header");
         }
     }
 

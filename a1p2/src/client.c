@@ -23,7 +23,7 @@ typedef struct {
 void* network_thread_actor(void* arg){
     clientdata* client = (clientdata*)arg;
     char input[INPUT_MAX];
-    void* buffer_send[PACKET_MAX];
+    char buffer_send[PACKET_MAX];
     while (client->terminate == 0) {
         memset(buffer_send, '\0', sizeof(buffer_send));
         //printf("> ");
@@ -34,18 +34,18 @@ void* network_thread_actor(void* arg){
         int out = (int)strtod(input,&errptr);
         if(*errptr != '\0' || client->state == GAME_STATE_WAIT){ // user can send text messages if it is not their turn or if they are waiting
             if(strcmp(input, "quit") == 0){
-                buffer_send[0] = (void*)HEADER_END;
+                buffer_send[0] = (char)HEADER_END;
                 client->terminate = 1;
             }else{
-                buffer_send[0] = (void*)HEADER_TEXT;
-                memcpy(buffer_send+sizeof(uint8_t), input, strlen(input)+1);
+                buffer_send[0] = (char)HEADER_TEXT;
+                memcpy(buffer_send+sizeof(char), input, strlen(input)+1);
             }
         }else{
-            packet_move packet;
-            packet.header = HEADER_MOVE;
-            packet.move = (int)fmax(fmin(out,9),1);
-            if(packet.move != out) printf("%i is out of bounds. im not going to break anything but i will clamp it to %i for you\n",out,packet.move);
-            memcpy(buffer_send,(void*)&packet,sizeof(packet));
+            int move = (int)fmax(fmin(out,9),1);
+            if(move != out) printf("%i is out of bounds. im not going to break anything but i will clamp it to %i for you\n",out,move);
+            //memcpy(buffer_send,(char*)&packet,sizeof(packet));
+            buffer_send[0] = (char)HEADER_MOVE;
+            buffer_send[1] = (char)move;
             client->state = GAME_STATE_WAIT;
         }
         
@@ -60,7 +60,7 @@ void* network_thread_actor(void* arg){
 
 void* network_thread_listener(void* arg){
     clientdata* client = (clientdata*)arg;
-    void* buffer_recv[PACKET_MAX];
+    char buffer_recv[PACKET_MAX];
     int packetcount = 0;
     while(client->terminate == 0){
         memset(buffer_recv, '\0', sizeof(buffer_recv));
@@ -70,16 +70,15 @@ void* network_thread_listener(void* arg){
             printf("lost connection with server\n");
             client->terminate = 1;
         }
-        buffer_recv[res-sizeof(char)] = '\0';
-        uint8_t *header = (uint8_t*)buffer_recv;
-        if(*header == HEADER_TEXT){
+        buffer_recv[res-1] = '\0';
+        char header = buffer_recv[0];
+        if(header == (char)HEADER_TEXT){
             char* txt = (char*)(buffer_recv+sizeof(uint8_t));
             printf("%s\n",txt);
-        }else if(*header == HEADER_MOVE){
-            packet_move* packet_recv = (packet_move*)buffer_recv;
+        }else if(header == (char)HEADER_MOVE){
             client->state = GAME_STATE_GO;
-            printf("It's your turn. Current value is %i\n",packet_recv->move);
-        }else if(*header == HEADER_END){
+            printf("It's your turn. Current value is %i\n",buffer_recv[1]);
+        }else if(header == (char)HEADER_END){
             printf("You've been disconnected from the server.\n");
             client->terminate = 1;
             break;
@@ -89,8 +88,8 @@ void* network_thread_listener(void* arg){
 }
 
 int main() {
-    void* buffer_send[PACKET_MAX];
-    void* buffer_recv[PACKET_MAX];
+    //char buffer_send[PACKET_MAX];
+    //char buffer_recv[PACKET_MAX];
     
     struct sockaddr_in server;  // server address
     int clientsock;             // client socket descriptor
