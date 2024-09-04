@@ -155,6 +155,8 @@ void* handle_client(threadcommon* common, void* arg) {
         }else if(*header == HEADER_END){
             printf("client say byebye\n");
             break;
+        }else{
+            printf("client )
         }
     }
 

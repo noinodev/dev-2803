@@ -11,6 +11,7 @@
 #define HEADER_MOVE 1
 #define HEADER_TEXT 2
 #define HEADER_END 3
+#define HEADER_ERROR 4
 
 #define GAME_STATE_WAIT 0
 #define GAME_STATE_GO 1

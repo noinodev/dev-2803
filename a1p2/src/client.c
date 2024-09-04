@@ -35,14 +35,10 @@ void* network_thread_actor(void* arg){
         if(*errptr != '\0' || client->state == GAME_STATE_WAIT){ // user can send text messages if it is not their turn or if they are waiting
             if(strcmp(input, "quit") == 0){
                 buffer_send[0] = (void*)HEADER_END;
-                //printf("try quit\n");
                 client->terminate = 1;
-                break;
             }else{
                 buffer_send[0] = (void*)HEADER_TEXT;
-                //buffer_send+sizeof(int) = (void*)input;
                 memcpy(buffer_send+sizeof(uint8_t), input, strlen(input)+1);
-                //printf("try text\n");
             }
         }else{
             packet_move packet;
@@ -89,7 +85,7 @@ void* network_thread_listener(void* arg){
             break;
         }
     }
-    printf("terminating listener. actor will be stopped\n");
+    printf("terminating listener.\n");
 }
 
 int main() {
