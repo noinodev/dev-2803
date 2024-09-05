@@ -44,10 +44,10 @@ void buffer_write_string(net_buffer* buff, char* string){
     buff->buffer[buff->pos] = '\0';
 }
 
-void network_disconnect(int socket){
+/*void network_disconnect(int socket){
     
     char buffer[PACKET_MIN];
     buffer[0] = HEADER_END;
     printf("forcing disconnect\n");
     send(socket,buffer,PACKET_MIN,0);
-}
+}*/

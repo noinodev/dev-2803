@@ -72,6 +72,9 @@ void* network_thread_actor(void* arg){
             pthread_mutex_unlock(&lock);
         }
 
+        //hout = HEADER_PING;
+        //buffer_write(&buffer_send,&hout,sizeof(char));
+
         int res;
         if(buffer_tell(&buffer_send) > 0) res = send(client->socket,buffer_send.buffer,buffer_tell(&buffer_send),0);
         if (res < 0) {
@@ -93,8 +96,9 @@ void* network_thread_listener(void* arg){
     clientdata* client = (clientdata*)arg;
     //char buffer_recv[PACKET_MAX];
     net_buffer buffer_recv = buffer_create();
+    net_buffer buffer_send = buffer_create();
     char string[INPUT_MAX];
-    char hin;
+    char hin,hout;
 
     while(client->terminate == 0){
         memset(string, '\0', sizeof(string));
@@ -132,6 +136,14 @@ void* network_thread_listener(void* arg){
                     printf("You've been disconnected from the server.\n");
                     client->terminate = 1;
                 break;
+
+                /*case HEADER_PING:
+                    //printf("ping\n");
+                    buffer_seek(&buffer_send,0);
+                    hout = HEADER_PING;
+                    buffer_write(&buffer_send,&hout,sizeof(char));
+                    send(client->socket,buffer_send.buffer,buffer_tell(&buffer_send),0);
+                break;*/
 
                 default:
                     printf("malformed packet or bad header from server : %i\n",pktc);
@@ -182,6 +194,7 @@ int main(int argc, char** argv) {
     client.state = GAME_STATE_WAIT;
     client.socket = clientsock;
     client.terminate = 0;
+    client.ping = 1;
     memcpy(client.name, argv[1], strlen(argv[1])+1);
 
     //client.name = *argv[1];
