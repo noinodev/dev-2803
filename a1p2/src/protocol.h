@@ -5,33 +5,45 @@
 #include <stdio.h>
 
 #define INPUT_MAX 256
-#define PACKET_MAX 1024
-#define PACKET_TEXT_PAYLOAD 64
+#define PACKET_MAX 128
+#define PACKET_MIN 2
 
 #define HEADER_MOVE 1
 #define HEADER_TEXT 2
 #define HEADER_END 3
 #define HEADER_ERROR 4
+#define HEADER_INFO 5
 
 #define GAME_STATE_WAIT 0
 #define GAME_STATE_GO 1
+#define GAME_INFRACTION_LIMIT 5
 
 #define NETWORK_TARGET_TO 0
 #define NETWORK_TARGET_EXCEPT 1
 #define NETWORK_TARGET_ALL 2
 
-typedef struct {
-    int port;
-    char *name;
-} session;
+#define GAME_ERROR_OOB 0
+#define GAME_ERROR_SEQ 1
+extern const char* err_game[];
 
 typedef struct {
-    uint8_t header;
-    uint8_t move;
-} packet_move;
+    char buffer[PACKET_MAX];
+    int pos;
+} net_buffer;
+
+net_buffer buffer_create();
+void buffer_seek(net_buffer* buff, int seek);
+int buffer_tell(net_buffer* buff);
+void* buffer_read(net_buffer* buff, int size);
+void buffer_read_string(net_buffer* buff, char* string);
+void buffer_write(net_buffer* buff, void* data, int size);
+void buffer_write_string(net_buffer* buff, char* string);
 
 typedef struct {
-    char msg[PACKET_TEXT_PAYLOAD];
-} packet_text;
+    int state,socket,terminate;
+    char name[32];
+} clientdata;
+
+void network_disconnect(int socket);
 
 #endif

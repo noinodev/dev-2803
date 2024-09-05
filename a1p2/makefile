@@ -5,8 +5,8 @@ BINDIR = bin/
 TARGET = game_server
 LOCALSRV = $(BINDIR)server
 LOCALCLT = $(BINDIR)client
-SRCSRV = $(OBJDIR)server.o
-SRCCLT = $(OBJDIR)client.o
+SRCSRV = $(OBJDIR)server.o $(OBJDIR)protocol.o
+SRCCLT = $(OBJDIR)client.o $(OBJDIR)protocol.o
 DIR = /usr/local/bin
 
 $(LOCAL): $(SRC)
@@ -15,17 +15,22 @@ $(LOCAL): $(SRC)
 $(OBJDIR)server.o: $(SRCDIR)server.c
 	gcc -c $(SRCDIR)server.c -o $(OBJDIR)server.o
 
-$(OBJDIR)client.o: $(SRCDIR)client.c
+$(OBJDIR)client.o: $(SRCDIR)client.c $(SRCDIR)protocol.c
 	gcc -c $(SRCDIR)client.c -o $(OBJDIR)client.o
+
+$(OBJDIR)protocol.o: $(SRCDIR)protocol.c $(SRCDIR)protocol.h
+	gcc -c $(SRCDIR)protocol.c -o $(OBJDIR)protocol.o
 
 client:
 	@echo "building client"
 	gcc -c $(SRCDIR)client.c -o $(OBJDIR)client.o
+	gcc -c $(SRCDIR)protocol.c -o $(OBJDIR)protocol.o
 	gcc $(SRCCLT) -o $(LOCALCLT)
 
 server:
 	@echo "building server"
 	gcc -c $(SRCDIR)server.c -o $(OBJDIR)server.o
+	gcc -c $(SRCDIR)protocol.c -o $(OBJDIR)protocol.o
 	gcc $(SRCSRV) -o $(LOCALSRV)
 
 install:
