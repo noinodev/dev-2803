@@ -45,20 +45,20 @@ void* network_thread_actor(void* arg){ // thread_actor, thread that performs use
                 hout = HEADER_END;
                 buffer_write(&buffer_send,&hout,sizeof(char));
                 client->terminate = 1;
-            }else{
+            }else if(input[0] == ':'){
                 // user sends text message. i couldve easily made this a protocol error but ip messaging is fun
                 hout = HEADER_TEXT;
                 buffer_write(&buffer_send,&hout,sizeof(char));
-                buffer_write_string(&buffer_send,input);
+                buffer_write_string(&buffer_send,input+sizeof(char));
             }
         }else{
             // process input for game move -> clamp 0-9
-            char move = (char)fmax(fmin(out,9),1);
-            if(move != out) printf("%i is out of bounds. im not going to break anything but i will clamp it to %i for you\n",out,move);
+            //char move = (char)fmax(fmin(out,9),1);
+            //if(move != out) printf("%i is out of bounds. im not going to break anything but i will clamp it to %i for you\n",out,move);
 
             hout = HEADER_MOVE;
             buffer_write(&buffer_send,&hout,sizeof(char));
-            buffer_write(&buffer_send,&move,sizeof(char));
+            buffer_write_string(&buffer_send,input);
             
             // set game state to wait after performing turn
             pthread_mutex_lock(&lock);

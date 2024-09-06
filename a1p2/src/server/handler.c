@@ -77,7 +77,8 @@ void* handle_client(threadcommon* common, void* arg) {
 
                 case HEADER_MOVE:
                     // player moves, error check to see if within bounds and if it is that players turn, because everything here is on its own thread and i dont want to block anything, this works better
-                    char move = *(char*)buffer_read(&buffer_recv,sizeof(char));
+                    //char move = *(char*)buffer_read(&buffer_recv,sizeof(char));
+                    buffer_read_string(&buffer_recv,string_recv);
                     int move_invalid = 0;
 
                     // out of bounds error (OOB) or sequence error (SEQ)

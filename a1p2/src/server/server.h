@@ -37,6 +37,14 @@ typedef struct {
     int turn,val,state,min,valdef;
 } threadcommon;
 
+typedef struct {
+    void* 
+} game;
+
+game game_define(){
+    
+}
+
 // client node linked list helper functions
 void client_insert(threadcommon* common);
 void client_remove(threadcommon* common,cnode* node);
