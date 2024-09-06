@@ -10,7 +10,7 @@ LOCALSRV = $(BINDIR)server
 LOCALCLT = $(BINDIR)client
 
 # Object files
-SRCSRV = $(OBJDIR)server.o $(OBJDIR)protocol.o $(OBJDIR)thread.o $(OBJDIR)handler.o
+SRCSRV = $(OBJDIR)server.o $(OBJDIR)protocol.o $(OBJDIR)thread.o $(OBJDIR)handler.o $(OBJDIR)games.o
 SRCCLT = $(OBJDIR)client.o $(OBJDIR)protocol.o
 
 # Install directory
@@ -42,6 +42,9 @@ $(OBJDIR)thread.o: $(SRCDIR)server/thread.c
 	$(CC) $(CFLAGS) -Iserver/ $< -o $@
 
 $(OBJDIR)handler.o: $(SRCDIR)server/handler.c
+	$(CC) $(CFLAGS) -Iserver/ $< -o $@
+
+$(OBJDIR)games.o: $(SRCDIR)server/games.c
 	$(CC) $(CFLAGS) -Iserver/ $< -o $@
 
 # Object files for client and shared protocol

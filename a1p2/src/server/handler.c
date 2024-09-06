@@ -80,10 +80,21 @@ void* handle_client(threadcommon* common, void* arg) {
                     //char move = *(char*)buffer_read(&buffer_recv,sizeof(char));
                     buffer_read_string(&buffer_recv,string_recv);
                     int move_err, move_post;
-                    move_err = common->game.handle_move_check(common,string_recv);
+                    if(common->game.handle_move_check != NULL) move_err = common->game.handle_move_check(common,string_recv);
+                    else{
+                        move_err = 0;
+                        //server isnt playing a game, just a text lobby
+                        buffer_seek(&buffer_send,0);
+                        hout = HEADER_TEXT;
+                        snprintf(string_send,INPUT_MAX*sizeof(char),"this server isnt hosting a game. use ':<message>' to send text, or 'quit' to leave");
+                        buffer_write(&buffer_send,&hout,sizeof(char));
+                        buffer_write_string(&buffer_send,string_send);
+                        send_all(common,buffer_send.buffer,buffer_tell(&buffer_send),socket,NETWORK_TARGET_TO);
+                    }
                     move_post = 0;
 
                     if(clientptr != common->sockets) move_err |= GAME_ERROR_SEQ; // turn sequence error, this doesnt depend on the game so it stays here
+                    
 
                     // out of bounds error (OOB) or sequence error (SEQ)
                     /*if(move != (char)fmin(fmax(move,1),9)) move_invalid |= GAME_ERROR_OOB;
@@ -95,8 +106,11 @@ void* handle_client(threadcommon* common, void* arg) {
 
                     if(move_err == 0){
                         // rotate cnode* linked list to move this client to back of turn queue, then update game state
-                        client_rotate(common);
-                        move_post = common->game.handle_move_update(common,string_recv);
+                        //client_rotate(common);
+                        if(common->game.handle_move_update != NULL){
+                            client_rotate(common);
+                            move_post = common->game.handle_move_update(common,string_recv);
+                        }else move_post = 0;
                     }else{
                         // disconnect client after 5 game infractions, even though they are technically impossible. these dont reset the turn timer so youll still get disconnected after 20 seconds anyway
                         if(infractions >= GAME_INFRACTION_LIMIT-1){

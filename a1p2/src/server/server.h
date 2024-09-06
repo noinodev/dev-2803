@@ -52,11 +52,14 @@ typedef struct threadcommon{
     int turn,state,min;
 } threadcommon;
 
+// games function declarations
 int game_numbers_move_check(threadcommon* common, char* string);
 int game_numbers_move_update(threadcommon* common, char* string);
-//void game_numbers_set_default(threadcommon* common);
+
+int game_rps_move_check(threadcommon* common, char* string);
+int game_rps_move_update(threadcommon* common, char* string);
+
 void game_reset(threadcommon* common);
-//void game_numbers_turn(threadcommon* common, gamedata* g, char* string);
 
 // client node linked list helper functions
 void client_insert(threadcommon* common);

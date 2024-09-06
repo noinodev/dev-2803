@@ -12,32 +12,6 @@
 #include "../protocol.h"
 #include "server.h"
 
-int game_numbers_move_check(threadcommon* common, char* string){
-    int error = 0;
-    char *errptr;
-    double out = strtod(string,&errptr);
-    if(*errptr != '\0' || out != (char)out) error |= GAME_ERROR_MAL;
-    if((char)out != (char)fmin(fmax(out,1),9)) error |= GAME_ERROR_OOB;
-    return error;
-}
-
-int game_numbers_move_update(threadcommon* common, char* string){
-    char *errptr;
-    char out = (char)strtod(string,&errptr);
-    common->game.data[1] -= out;
-
-    net_buffer buffer_send;
-    buffer_seek(&buffer_send,0);
-    char hout = HEADER_TEXT, string_send[INPUT_MAX];
-    snprintf(string_send,INPUT_MAX*sizeof(char),"current value is %i. enter a number 0-9",common->game.data[1]);
-    buffer_write(&buffer_send,&hout,sizeof(char));
-    buffer_write_string(&buffer_send,string_send);
-    send(common->sockets->data.socket,buffer_send.buffer,buffer_tell(&buffer_send),0);
-
-    if(common->game.data[1] <= 0) return 1;
-    return 0;
-}
-
 /*void game_numbers_set_default(threadcommon* common){
 
 }*/
@@ -166,17 +140,37 @@ int main(int argc, char** argv) {
     common.state = GAME_STATE_WAIT;
     common.sockets = NULL;
 
+    common.game.handle_move_check = NULL;
+    common.game.handle_move_update = NULL;
+
     // set game function pointers
     if(strcmp(argv[2],"numbers") == 0){
         common.game.handle_move_check = game_numbers_move_check;
         common.game.handle_move_update = game_numbers_move_update;
         //common.game.handle_set_defaults = game_numbers_set_default;
-        common.game.handle_set_reset = game_reset;
         common.game.def[0] = argc >= 4 ? atoi(argv[3]) : 2; // minimum players for numbers
         common.game.def[1] = argc >= 5 ? atoi(argv[4]) : 25; // starting value for game
         common.game.def[2] = '\0';
-        common.game.handle_set_reset(&common);
-    }
+        game_reset(&common);
+    }else if(strcmp(argv[2],"rps") == 0){ // other games because this was really easy
+        common.game.handle_move_check = game_rps_move_check;
+        common.game.handle_move_update = game_rps_move_update;
+        //common.game.handle_set_defaults = game_numbers_set_default;
+        common.game.def[0] = argc >= 4 ? atoi(argv[3]) : 2; // minimum players for rock paper scissors
+        common.game.def[1] = 0;
+        common.game.def[2] = 0;
+        //memset(common.game.def+2*sizeof(char),0,sizeof(common.game.def)-2*sizeof(char));
+        common.game.def[3] = '\0';
+        game_reset(&common);
+    }/*else if(strcmp(argv[2],"count") == 0){
+        common.game.handle_move_check = game_count_move_check;
+        common.game.handle_move_update = game_count_move_update;
+        //common.game.handle_set_defaults = game_numbers_set_default;
+        common.game.def[0] = argc >= 4 ? atoi(argv[3]) : 2; // minimum players for counting to 100
+        common.game.def[1] = argc >= 4 ? atoi(argv[3]) : 2;
+        common.game.def[3] = '\0';
+        game_reset(&common);
+    }*/
     
     // create TCP socket
     common.serversock = socket(AF_INET, SOCK_STREAM, 0);
