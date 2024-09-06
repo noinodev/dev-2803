@@ -1,59 +1,75 @@
-
+# Directories
 SRCDIR = src/
 OBJDIR = out/
 BINDIR = bin/
+
+# Targets
 TARGETSRV = game_server
 TARGETCLT = game_client
 LOCALSRV = $(BINDIR)server
 LOCALCLT = $(BINDIR)client
+
+# Object files
 SRCSRV = $(OBJDIR)server.o $(OBJDIR)protocol.o $(OBJDIR)thread.o $(OBJDIR)handler.o
 SRCCLT = $(OBJDIR)client.o $(OBJDIR)protocol.o
+
+# Install directory
 DIR = /usr/local/bin
 
-#$(LOCAL): $(SRC)
-#	gcc $(SRC) -o $(LOCAL)
+# Compiler and flags
+CC = gcc
+CFLAGS = -c -MMD -MP
+LDFLAGS = -o
 
-#$(OBJDIR)server.o: $(SRCDIR)server.c
-#	gcc -c $(SRCDIR)server.c -o $(OBJDIR)server.o
+# Rules to build
+all: server client
 
-#$(OBJDIR)client.o: $(SRCDIR)client.c $(SRCDIR)protocol.c
-#	gcc -c $(SRCDIR)client.c -o $(OBJDIR)client.o
+# Server target
+server: $(SRCSRV)
+	@echo "Linking server"
+	$(CC) $(SRCSRV) $(LDFLAGS) $(LOCALSRV)
 
-#$(OBJDIR)protocol.o: $(SRCDIR)protocol.c $(SRCDIR)protocol.h
-#	gcc -c $(SRCDIR)protocol.c -o $(OBJDIR)protocol.o
+# Client target
+client: $(SRCCLT)
+	@echo "Linking client"
+	$(CC) $(SRCCLT) $(LDFLAGS) $(LOCALCLT)
 
-client:
-	@echo "building client"
-	gcc -c $(SRCDIR)client.c -o $(OBJDIR)client.o
-	gcc -c $(SRCDIR)protocol.c -o $(OBJDIR)protocol.o
-	gcc $(SRCCLT) -o $(LOCALCLT)
+# Object files for server
+$(OBJDIR)server.o: $(SRCDIR)server/server.c
+	$(CC) $(CFLAGS) -Iserver/ $< -o $@
 
-server:
-	@echo "building server"
-	gcc -c $(SRCDIR)protocol.c -o $(OBJDIR)protocol.o
-	gcc -c -Iserver/ $(SRCDIR)server/thread.c -o $(OBJDIR)thread.o
-	gcc -c -Iserver/ $(SRCDIR)server/handler.c -o $(OBJDIR)handler.o
-	gcc -c -Iserver/ $(SRCDIR)server/server.c -o $(OBJDIR)server.o
-	gcc $(SRCSRV) -o $(LOCALSRV)
+$(OBJDIR)thread.o: $(SRCDIR)server/thread.c
+	$(CC) $(CFLAGS) -Iserver/ $< -o $@
 
-installserver:
-	@echo "building and installing $(TARGETSRV) at $(DIR)"
-	@make server
-	@echo "build completed"
-	@cp $(TARGETSRV) $(DIR)/$(TARGETSRV)
-	@echo "done."
+$(OBJDIR)handler.o: $(SRCDIR)server/handler.c
+	$(CC) $(CFLAGS) -Iserver/ $< -o $@
 
-installclient:
-	@echo "building and installing $(TARGETCLT) at $(DIR)"
-	@make client
-	@echo "build completed"
-	@cp $(TARGETCLT) $(DIR)/$(TARGETCLT)
-	@echo "done."
+# Object files for client and shared protocol
+$(OBJDIR)client.o: $(SRCDIR)client.c
+	$(CC) $(CFLAGS) $< -o $@
+
+$(OBJDIR)protocol.o: $(SRCDIR)protocol.c $(SRCDIR)protocol.h
+	$(CC) $(CFLAGS) $< -o $@
+
+# Install/uninstall rules
+installserver: server
+	@echo "Installing server at $(DIR)"
+	@cp $(LOCALSRV) $(DIR)/$(TARGETSRV)
+	@echo "Done."
+
+installclient: client
+	@echo "Installing client at $(DIR)"
+	@cp $(LOCALCLT) $(DIR)/$(TARGETCLT)
+	@echo "Done."
 
 uninstall:
-	@echo "uninstalling"
+	@echo "Uninstalling"
 	@rm -f $(DIR)/$(TARGETSRV) $(DIR)/$(TARGETCLT)
-	@echo "done."
+	@echo "Done."
 
+# Clean rule
 clean:
-	rm $(OBJDIR)*.o $(LOCAL)
+	rm -f $(OBJDIR)*.o $(OBJDIR)*.d $(LOCALSRV) $(LOCALCLT)
+
+# Include dependency files
+-include $(OBJDIR)*.d
