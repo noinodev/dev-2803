@@ -45,7 +45,7 @@ void buffer_write_string(net_buffer* buff, char* string);
 
 typedef struct {
     int state,socket,terminate,ping;
-    char name[32];
+    char name[32], type[32];
 } clientdata;
 
 //void network_disconnect(int socket);

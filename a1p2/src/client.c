@@ -11,10 +11,11 @@
 #include <time.h>
 #include <pthread.h>
 #include <math.h>
+#include <netdb.h>
 #include "protocol.h"
 
-#define PORT 8080
-#define BUF_SIZE 1024
+//#define PORT 8080
+//#define BUF_SIZE 1024
 
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
@@ -78,7 +79,7 @@ void* network_thread_actor(void* arg){
         int res;
         if(buffer_tell(&buffer_send) > 0) res = send(client->socket,buffer_send.buffer,buffer_tell(&buffer_send),0);
         if (res < 0) {
-            printf("Sending data to server failed");
+            printf("ERROR sending data to server failed");
             exit(1);
         }
 
@@ -89,7 +90,7 @@ void* network_thread_actor(void* arg){
             exit(1);
         }*/
     }
-    printf("terminating actor. goodbye!");
+    //printf("terminating actor. goodbye!");
 }
 
 void* network_thread_listener(void* arg){
@@ -105,48 +106,51 @@ void* network_thread_listener(void* arg){
         buffer_seek(&buffer_recv,0);
         int res = recv(client->socket, buffer_recv.buffer, PACKET_MAX, 0);
         buffer_recv.buffer[res] = '\0';
-        if(res == 0){
-            printf("lost connection with server\n");
+        if(res <= 0){
+            printf("ERROR lost connection to server\n");
             client->terminate = 1;
-        }
+        }//else printf("recv something '%i'",res);
         //hin = *(char*)buffer_read(&buffer_recv,sizeof(char));
 
         hin = *(char*)buffer_read(&buffer_recv,sizeof(char));
         // PACKET STREAMING HOLY MOLY
         int pktc = 0;
-        pthread_mutex_lock(&lock);
-        while(hin != '\0'){
+        //pthread_mutex_lock(&lock);
+        while(hin != '\0' && client->terminate == 0){
             pktc++;
             switch(hin){
                 case HEADER_TEXT:
                     buffer_read_string(&buffer_recv,string);
                     printf("%s\n",string);
-
                 break;
 
                 case HEADER_MOVE:
                     char val = *(int*)buffer_read(&buffer_recv,sizeof(char));
                     //pthread_mutex_lock(&lock);
-                    if(client->state != GAME_STATE_GO) printf("It's your turn. Current value is %i\n",val);
+                    if(client->state != GAME_STATE_GO) printf("it's your turn. current value is %i. enter a number 0->9.\n",val);
                     client->state = GAME_STATE_GO;
                     //pthread_mutex_unlock(&lock);
                 break;
 
                 case HEADER_END:
-                    printf("You've been disconnected from the server.\n");
+                    printf("you've been disconnected from the server.\n");
                     client->terminate = 1;
                 break;
 
-                /*case HEADER_PING:
-                    //printf("ping\n");
-                    buffer_seek(&buffer_send,0);
-                    hout = HEADER_PING;
-                    buffer_write(&buffer_send,&hout,sizeof(char));
-                    send(client->socket,buffer_send.buffer,buffer_tell(&buffer_send),0);
+                /*case HEADER_INFO:
+                    int state = *(int*)buffer_read(&buffer_recv,sizeof(char));
+                    switch(state){
+                        case GAME_STATE_GO:
+                            printf("Game is starting.\n");
+                        break;
+                        case GAME_STATE_WAIT:
+                            printf("Waiting for players\n");
+                        break;
+                    }
                 break;*/
 
                 default:
-                    printf("malformed packet or bad header from server : %i\n",pktc);
+                    printf("ERROR malformed packet or bad header from server.\n");
                     client->terminate = 1;
                     pktc--;
                 break;
@@ -154,14 +158,18 @@ void* network_thread_listener(void* arg){
             hin = *(char*)buffer_read(&buffer_recv,sizeof(char));
         }
         //printf("finished packet handling, %i valid packets in stream\n",pktc);
-        pthread_mutex_unlock(&lock);
+        //pthread_mutex_unlock(&lock);
     }
-    printf("terminating listener.\n");
+    //printf("terminating listener.\n");
 }
 
 int main(int argc, char** argv) {
     //char buffer_send[PACKET_MAX];
     //char buffer_recv[PACKET_MAX];
+    if(argc <= 3){
+        printf("ERROR wrong number of arguments:\n<char* gametype> <char* hostname> <int port> [char* username]>");
+        return 0;
+    }
 
     setbuf(stdout, NULL);
     
@@ -170,32 +178,51 @@ int main(int argc, char** argv) {
     
     int res;
 
-    server.sin_addr.s_addr = inet_addr("127.0.0.1");
+    int port = atoi(argv[3]);
+
+    struct hostent *host;
+    host = gethostbyname(argv[2]);
+
+    if (host == NULL) {
+        printf("ERROR cannot resolve hostname\n");
+        return 0;
+    }
+
+    char* ipaddr = inet_ntoa(*(struct in_addr*)host->h_addr_list[0]);
+    //printf("%s resolves to %s",argv[2],ipaddr);
+
+    server.sin_addr.s_addr = inet_addr(ipaddr);
     server.sin_family = AF_INET;
-    server.sin_port = htons(PORT);
+    server.sin_port = htons(port);
 
     // create socket
     clientsock = socket(AF_INET, SOCK_STREAM, 0);
 
     if (clientsock < 0) {
-        perror("Could not create socket");
+        perror("ERROR cannot create socket");
+        return 0;
     }
-    printf("Socket created\n");
+    printf("Attempting to connect to %s[%s:%i]... ",argv[2],ipaddr,port);
 
     // Connect (to remote server)
     res = connect(clientsock, (struct sockaddr *) &server, sizeof(server));
     if (res == -1) {
-        printf("Connection failed\n");
-        exit(1);
+        printf("ERROR connection failed\n");
+        return 0;
     }
+    printf("ok!\n");
+    printf("you can send text messages at any time. sending 'quit' terminates the connection.\n");
 
-    int state = GAME_STATE_WAIT;
+    char* user = "user";
+    //int state = GAME_STATE_WAIT;
     clientdata client;
     client.state = GAME_STATE_WAIT;
     client.socket = clientsock;
     client.terminate = 0;
     client.ping = 1;
-    memcpy(client.name, argv[1], strlen(argv[1])+1);
+    //memcpy(client.name, argv[1], strlen(argv[1])+1);
+    strncpy(client.name,argc > 4 ? argv[4] : user,sizeof(client.name));
+    strncpy(client.type,argc > 4 ? argv[1] : user,sizeof(client.name));
 
     //client.name = *argv[1];
 
@@ -206,5 +233,6 @@ int main(int argc, char** argv) {
     pthread_join(listener, NULL);
     pthread_cancel(actor); // serious hack because i dont want to over complicate the input stream by using anything other than fgets
     close(clientsock);
+    printf("goodbye!\n");
     return 0;
 }
