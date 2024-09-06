@@ -12,6 +12,7 @@
 #include "../protocol.h"
 #include "server.h"
 
+// check for errors in input for numbers
 int game_numbers_move_check(threadcommon* common, char* string){
     int error = 0;
     char *errptr;
@@ -21,6 +22,7 @@ int game_numbers_move_check(threadcommon* common, char* string){
     return error;
 }
 
+// numbers update function -> decrement value and send message to next player
 int game_numbers_move_update(threadcommon* common, char* string){
     char *errptr;
     char out = (char)strtod(string,&errptr);

@@ -134,12 +134,10 @@ int main(int argc, char** argv) {
     common.task_count = 0;
     common.all_terminate = 0;
     common.turn = 0;
-    //common.valdef = argc >= 5 ? atoi(argv[4]) : 25;
-    //common.val = common.valdef;
-    //common.min = argc >= 4 ? atoi(argv[3]) : 2;
     common.state = GAME_STATE_WAIT;
     common.sockets = NULL;
 
+    // game function pointers
     common.game.handle_move_check = NULL;
     common.game.handle_move_update = NULL;
 
@@ -147,7 +145,6 @@ int main(int argc, char** argv) {
     if(strcmp(argv[2],"numbers") == 0){
         common.game.handle_move_check = game_numbers_move_check;
         common.game.handle_move_update = game_numbers_move_update;
-        //common.game.handle_set_defaults = game_numbers_set_default;
         common.game.def[0] = argc >= 4 ? atoi(argv[3]) : 2; // minimum players for numbers
         common.game.def[1] = argc >= 5 ? atoi(argv[4]) : 25; // starting value for game
         common.game.def[2] = '\0';
@@ -155,22 +152,12 @@ int main(int argc, char** argv) {
     }else if(strcmp(argv[2],"rps") == 0){ // other games because this was really easy
         common.game.handle_move_check = game_rps_move_check;
         common.game.handle_move_update = game_rps_move_update;
-        //common.game.handle_set_defaults = game_numbers_set_default;
         common.game.def[0] = argc >= 4 ? atoi(argv[3]) : 2; // minimum players for rock paper scissors
         common.game.def[1] = 0;
         common.game.def[2] = 0;
-        //memset(common.game.def+2*sizeof(char),0,sizeof(common.game.def)-2*sizeof(char));
         common.game.def[3] = '\0';
         game_reset(&common);
-    }/*else if(strcmp(argv[2],"count") == 0){
-        common.game.handle_move_check = game_count_move_check;
-        common.game.handle_move_update = game_count_move_update;
-        //common.game.handle_set_defaults = game_numbers_set_default;
-        common.game.def[0] = argc >= 4 ? atoi(argv[3]) : 2; // minimum players for counting to 100
-        common.game.def[1] = argc >= 4 ? atoi(argv[3]) : 2;
-        common.game.def[3] = '\0';
-        game_reset(&common);
-    }*/
+    }
     
     // create TCP socket
     common.serversock = socket(AF_INET, SOCK_STREAM, 0);
