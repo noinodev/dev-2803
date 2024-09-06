@@ -60,13 +60,13 @@ void* network_thread_actor(void* arg){
             }
         }else{
             char move = (char)fmax(fmin(out,9),1);
-            //if(move != out) printf("%i is out of bounds. im not going to break anything but i will clamp it to %i for you\n",out,move);
+            if(move != out) printf("%i is out of bounds. im not going to break anything but i will clamp it to %i for you\n",out,move);
             //memcpy(buffer_send,(char*)&packet,sizeof(packet));
             //buffer_send[0] = (char)HEADER_MOVE;
             //buffer_send[1] = (char)out;
             hout = HEADER_MOVE;
             buffer_write(&buffer_send,&hout,sizeof(char));
-            buffer_write(&buffer_send,&move,sizeof(char));
+            buffer_write(&buffer_send,&move,sizeof(char)); ////////////////////////////////////////
             
             pthread_mutex_lock(&lock);
             client->state = GAME_STATE_WAIT;
@@ -221,8 +221,8 @@ int main(int argc, char** argv) {
     client.terminate = 0;
     client.ping = 1;
     //memcpy(client.name, argv[1], strlen(argv[1])+1);
-    strncpy(client.name,argc > 4 ? argv[4] : user,sizeof(client.name));
-    strncpy(client.type,argc > 4 ? argv[1] : user,sizeof(client.name));
+    strncpy(client.name,argc > 4 ? argv[4] : user,NAME_MAX*sizeof(char));
+    strncpy(client.type,argv[1],NAME_MAX*sizeof(char));
 
     //client.name = *argv[1];
 

@@ -7,6 +7,7 @@
 #define INPUT_MAX 256
 #define PACKET_MAX 128
 #define PACKET_MIN 2
+#define NAME_MAX 32
 
 //#define HEADER_PING 6
 #define HEADER_MOVE 1
@@ -26,8 +27,8 @@
 #define NETWORK_TIMEOUT_PING 10
 #define NETWORK_TIMEOUT_WAIT 20
 
-#define GAME_ERROR_OOB 0
-#define GAME_ERROR_SEQ 1
+#define GAME_ERROR_OOB 1
+#define GAME_ERROR_SEQ 2
 extern const char* err_game[];
 
 typedef struct {
@@ -45,7 +46,7 @@ void buffer_write_string(net_buffer* buff, char* string);
 
 typedef struct {
     int state,socket,terminate,ping;
-    char name[32], type[32];
+    char name[NAME_MAX], type[NAME_MAX];
 } clientdata;
 
 //void network_disconnect(int socket);

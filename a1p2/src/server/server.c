@@ -79,12 +79,26 @@ int client_count(threadcommon* common){
 void network_disconnect(cnode* node){
     char buffer[PACKET_MIN];
     buffer[0] = HEADER_END;
+    send(node->data.socket,buffer,sizeof(char),0);
     //printf("forcing disconnect\n");
-    printf("send disconnect: %i\n",send(node->data.socket,buffer,sizeof(char),0));
+    //printf("send disconnect: %i\n",send(node->data.socket,buffer,sizeof(char),0));
     node->data.terminate = 1;
     //close(node->data.socket);
     //node->data.socket = -1;
     //client_remove()
+}
+
+void network_disconnect_all(threadcommon* common){
+    //printf("DISCONNECT ALL!\n");
+    cnode* node = common->sockets;
+    char buffer[PACKET_MIN];
+    buffer[0] = HEADER_END;
+    //send(node->data.socket,buffer,sizeof(char),0);
+    while(node != NULL){
+        send(node->data.socket,buffer,sizeof(char),0);
+        node->data.terminate = 1;
+        node = node->next;
+    }
 }
 
 int send_all(threadcommon* common, void* buffer, int size, int target, int rule){

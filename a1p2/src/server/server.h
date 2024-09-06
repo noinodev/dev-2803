@@ -44,6 +44,7 @@ cnode* dequeue(threadcommon* common);
 void* thread_worker(void* arg);
 
 void network_disconnect(cnode* client);
+void network_disconnect_all(threadcommon* common);
 int send_all(threadcommon* common, void* buffer, int size, int target, int rule);
 
 void* network_thread_actor(void* arg);

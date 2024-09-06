@@ -52,14 +52,17 @@ void* handle_client(threadcommon* common, void* arg) {
         if(size_in < 0){
             if(errno == EAGAIN || errno == EWOULDBLOCK) continue;
             else break;
-            //perror("recv failed");
+            perror("recv failed");
             //break;
         }else if(size_in == 0){
-            //printf("disconnect\n");
+            printf("disconnect\n");
             break;
         }
+        //printf("recv: %s\n",buffer_recv.buffer);
         buffer_recv.buffer[size_in] = '\0';
+        //printf("set\n");
         hin = *(char*)buffer_read(&buffer_recv,sizeof(char));
+        //printf("%i",hin);
         // PACKET STREAMING HOLY MOLY
         int pktc = 0;
         while(hin != '\0'){
@@ -71,9 +74,13 @@ void* handle_client(threadcommon* common, void* arg) {
                 break;*/
 
                 case HEADER_INFO:
+                    //printf("info");
                     buffer_read_string(&buffer_recv,string_recv);
-                    strncpy(client->name,string_recv,sizeof(client->name));
-                    //printf("client '%i' is named '%s'\n",socket,client->name);
+                    //printf("%s",string_recv);
+                    //strncpy(client->name,string_recv,sizeof(client->name));
+                    //printf("wtf %i",snprintf(client->name,NAME_MAX*sizeof(char),"%s",string_recv));
+                    snprintf(client->name,NAME_MAX*sizeof(char),"%s",string_recv);
+                    printf("%s connected\n",client->name);
 
                     buffer_seek(&buffer_send,0);
                     hout = HEADER_TEXT;
@@ -104,17 +111,41 @@ void* handle_client(threadcommon* common, void* arg) {
                     //TODO: sanitize this move ^^^
 
                     //printf("client '%s' moves '%i'\n",client->name,move);
+                    int move_invalid = 0;
 
-                    if(move == (char)fmin(fmax(move,1),9)){
-                        client_rotate(common/*,common->sockets*/);
+                    if(move != (char)fmin(fmax(move,1),9)) move_invalid |= GAME_ERROR_OOB;
+                    if(clientptr != common->sockets){
+                        move_invalid |= GAME_ERROR_SEQ;
+                        printf("sequence error");
+                    }
+
+
+                    if(move_invalid == 0){
+                        client_rotate(common);
                         common->val -= move;
-                        infractions = 0;
+                        //infractions = 0;
                     }else{
                         if(infractions >= GAME_INFRACTION_LIMIT){
                             client->terminate = 1;
-                            continue;
+                            //continue;
                         }
                         infractions++;
+
+                        buffer_seek(&buffer_send,0);
+                        if((move_invalid&GAME_ERROR_OOB) == GAME_ERROR_OOB){
+                            snprintf(string_send,INPUT_MAX*sizeof(char),"ERROR move '%i' out of bounds, infraction %i/%i ",move,infractions,GAME_INFRACTION_LIMIT);
+                            hout = HEADER_TEXT;
+                            buffer_write(&buffer_send,&hout,sizeof(char));
+                            buffer_write_string(&buffer_send,string_send);
+                        }
+                        if((move_invalid&GAME_ERROR_SEQ) == GAME_ERROR_SEQ){
+                            snprintf(string_send,INPUT_MAX*sizeof(char),"ERROR it's not your turn, infraction %i/%i ",infractions,GAME_INFRACTION_LIMIT);
+                            hout = HEADER_TEXT;
+                            buffer_write(&buffer_send,&hout,sizeof(char));
+                            buffer_write_string(&buffer_send,string_send);
+                        }
+                        send(socket,buffer_send.buffer,buffer_tell(&buffer_send),0);
+                        break;
                     }
 
                     if(common->val <= 0){
@@ -138,6 +169,8 @@ void* handle_client(threadcommon* common, void* arg) {
                         buffer_write(&buffer_send,&hout,sizeof(char));
                         buffer_write_string(&buffer_send,msg[1]);
                         send_all(common,buffer_send.buffer,buffer_tell(&buffer_send),socket,NETWORK_TARGET_EXCEPT);
+
+                        network_disconnect_all(common);
 
                         common->state = GAME_STATE_WAIT;
                         common->val = common->valdef;
@@ -241,6 +274,8 @@ void* network_thread_actor(void* arg){
                         buffer_write(&buffer_send,&hout,sizeof(char));
                         buffer_write_string(&buffer_send,msg[0]);
                         send(common->sockets->data.socket,buffer_send.buffer,buffer_tell(&buffer_send),0);
+
+                        network_disconnect(common->sockets);
                     }
                     common->val = common->valdef;
                     common->state = GAME_STATE_WAIT;
@@ -306,7 +341,7 @@ void* network_thread_listener(void* arg){
             common->sockets->data.terminate = 0;
             common->sockets->data.ping = NETWORK_TIMEOUT_PING;
             //if(common->sockets->next != NULL) printf("this:'%i' next:'%i'",common->sockets->data.socket,common->sockets->next->data.socket);
-            //printf("joined game\n");
+            printf("joined game\n");
 
             /*net_buffer buffer_send = buffer_create();
             char hout = HEADER_INFO, state = common->state;
