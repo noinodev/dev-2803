@@ -79,47 +79,58 @@ void* handle_client(threadcommon* common, void* arg) {
                     // player moves, error check to see if within bounds and if it is that players turn, because everything here is on its own thread and i dont want to block anything, this works better
                     //char move = *(char*)buffer_read(&buffer_recv,sizeof(char));
                     buffer_read_string(&buffer_recv,string_recv);
-                    int move_invalid = 0;
+                    int move_err, move_post;
+                    move_err = common->game.handle_move_check(common,string_recv);
+                    move_post = 0;
+
+                    if(clientptr != common->sockets) move_err |= GAME_ERROR_SEQ; // turn sequence error, this doesnt depend on the game so it stays here
 
                     // out of bounds error (OOB) or sequence error (SEQ)
-                    if(move != (char)fmin(fmax(move,1),9)) move_invalid |= GAME_ERROR_OOB;
+                    /*if(move != (char)fmin(fmax(move,1),9)) move_invalid |= GAME_ERROR_OOB;
                     if(clientptr != common->sockets){
                         move_invalid |= GAME_ERROR_SEQ;
                         printf("sequence error");
-                    }
+                    }*/
 
 
-                    if(move_invalid == 0){
-                        // rotate cnode* linked list to move this client to back of turn queue, then decrement game score
+                    if(move_err == 0){
+                        // rotate cnode* linked list to move this client to back of turn queue, then update game state
                         client_rotate(common);
-                        common->val -= move;
+                        move_post = common->game.handle_move_update(common,string_recv);
                     }else{
                         // disconnect client after 5 game infractions, even though they are technically impossible. these dont reset the turn timer so youll still get disconnected after 20 seconds anyway
-                        if(infractions >= GAME_INFRACTION_LIMIT){
+                        if(infractions >= GAME_INFRACTION_LIMIT-1){
                             client->terminate = 1;
                         }
                         infractions++;
 
                         // concantenate and send error messages that apply
                         buffer_seek(&buffer_send,0);
-                        if((move_invalid&GAME_ERROR_OOB) == GAME_ERROR_OOB){
-                            snprintf(string_send,INPUT_MAX*sizeof(char),"ERROR move '%i' out of bounds, infraction %i/%i ",move,infractions,GAME_INFRACTION_LIMIT);
-                            hout = HEADER_TEXT;
+                        hout = HEADER_TEXT;
+                        if((move_err&GAME_ERROR_OOB) == GAME_ERROR_OOB){
+                            snprintf(string_send,INPUT_MAX*sizeof(char),"ERROR move '%s' out of bounds\n",string_recv);
                             buffer_write(&buffer_send,&hout,sizeof(char));
                             buffer_write_string(&buffer_send,string_send);
                         }
-                        if((move_invalid&GAME_ERROR_SEQ) == GAME_ERROR_SEQ){
-                            snprintf(string_send,INPUT_MAX*sizeof(char),"ERROR it's not your turn, infraction %i/%i ",infractions,GAME_INFRACTION_LIMIT);
-                            hout = HEADER_TEXT;
+                        if((move_err&GAME_ERROR_SEQ) == GAME_ERROR_SEQ){
+                            snprintf(string_send,INPUT_MAX*sizeof(char),"ERROR it's not your turn\n");
                             buffer_write(&buffer_send,&hout,sizeof(char));
                             buffer_write_string(&buffer_send,string_send);
                         }
+                        if((move_err&GAME_ERROR_MAL) == GAME_ERROR_MAL){
+                            snprintf(string_send,INPUT_MAX*sizeof(char),"ERROR malformed input data\n");
+                            buffer_write(&buffer_send,&hout,sizeof(char));
+                            buffer_write_string(&buffer_send,string_send);
+                        }
+                        snprintf(string_send,INPUT_MAX*sizeof(char),"game infraction %i/%i",infractions,GAME_INFRACTION_LIMIT);
+                        buffer_write(&buffer_send,&hout,sizeof(char));
+                        buffer_write_string(&buffer_send,string_send);
                         send(socket,buffer_send.buffer,buffer_tell(&buffer_send),0);
                         break;
                     }
 
                     // handle next state, gameover state or next turn
-                    if(common->val <= 0){
+                    if(move_post > 0){
                         // gameover state, val is less than 0. 
                         char* msg[] = {"you win :)","you lose :("};
                         // tell all clients WHO won the game
@@ -149,15 +160,16 @@ void* handle_client(threadcommon* common, void* arg) {
                         network_disconnect_all(common);
 
                         // reset game state
-                        common->state = GAME_STATE_WAIT;
-                        common->val = common->valdef;
+                        //common->state = GAME_STATE_WAIT;
+                        //common->val = common->valdef;
+                        game_reset(common);
                     }else{
                         // send move packet to next client in queue, which is now the root node of common->sockets linked list
                         buffer_seek(&buffer_send,0);
                         hout = HEADER_MOVE;
-                        char vout = common->val;
+                        //char vout = common->val;
                         buffer_write(&buffer_send,&hout,sizeof(char));
-                        buffer_write(&buffer_send,&vout,sizeof(char));
+                        //buffer_write(&buffer_send,&vout,sizeof(char));
                         send(common->sockets->data.socket,buffer_send.buffer,buffer_tell(&buffer_send),0);
 
                         // tell all other clients who is taking their turn
@@ -225,7 +237,7 @@ void* network_thread_actor(void* arg){
             // get client count in session
             int clientcount = client_count(common);
             if(common->state == GAME_STATE_GO){
-                if(clientcount >= GAME_MIN_PLAYERS){
+                if(clientcount >= common->game.def[0]){
                     if(turn != common->sockets){
                         // player has taken their turn or disconnected, so the turn timer is reset
                         turn = common->sockets;
@@ -254,7 +266,11 @@ void* network_thread_actor(void* arg){
                     buffer_seek(&buffer_send,0);
                     hout = HEADER_MOVE;
                     buffer_write(&buffer_send,&hout,sizeof(char));
-                    buffer_write(&buffer_send,&common->val,sizeof(char));
+                    /*hout = HEADER_TEXT;
+                    buffer_write(&buffer_send,&hout,sizeof(char));
+                    //snprintf(string_send,INPUT_MAX*sizeof(char),"it is your turn");
+                    buffer_write_string(&buffer_send,string_send);*/
+                    //buffer_write(&buffer_send,&common->val,sizeof(char));
                     send(common->sockets->data.socket,buffer_send.buffer,buffer_tell(&buffer_send),0);
                 }else{
                     if(clientcount == 1){
@@ -269,10 +285,11 @@ void* network_thread_actor(void* arg){
                         network_disconnect(common->sockets);
                     }
                     // reset game state
-                    common->val = common->valdef;
-                    common->state = GAME_STATE_WAIT;
+                    //common->val = common->valdef;
+                    //common->state = GAME_STATE_WAIT;
+                    game_reset(common);
                 }
-            }else if(common->state == GAME_STATE_WAIT && clientcount >= common->min){
+            }else if(common->state == GAME_STATE_WAIT && clientcount >= common->game.def[0]){
                 // if there are enough players, set new game state and tell all clients the game is starting
                 common->state = GAME_STATE_GO;
                 printf("have enough players, starting!\n");
@@ -280,7 +297,7 @@ void* network_thread_actor(void* arg){
                 buffer_seek(&buffer_send,0);
                 hout = HEADER_TEXT;
                 buffer_write(&buffer_send,&hout,sizeof(char));
-                snprintf(string_send,INPUT_MAX*sizeof(char),"Game starting with %i players. Starting value is %i",clientcount,common->val);
+                snprintf(string_send,INPUT_MAX*sizeof(char),"Game starting with %i players.",clientcount);
                 buffer_write_string(&buffer_send,string_send);
                 send_all(common,buffer_send.buffer,buffer_tell(&buffer_send),-1,NETWORK_TARGET_ALL);
             }else if(common->state == GAME_STATE_WAIT){

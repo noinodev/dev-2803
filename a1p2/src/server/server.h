@@ -9,6 +9,19 @@
 
 #define THREAD_POOL_SIZE 5
 
+typedef struct threadcommon threadcommon;
+typedef struct cnode cnode;
+typedef struct gamedata gamedata;
+
+// game struct, just used for 'numbers' for now
+typedef struct gamedata {
+    int (*handle_move_check)(threadcommon*, char*);
+    int (*handle_move_update)(threadcommon*, char*);
+    //void (*handle_set_defaults)(threadcommon* common);
+    void (*handle_set_reset)(threadcommon*);
+    char data[64], def[64];
+} gamedata;
+
 // client node doubly linked list
 typedef struct cnode {
     clientdata data;
@@ -16,7 +29,7 @@ typedef struct cnode {
 } cnode;
 
 // thread shared data because i dont like global scoped variables for some reason
-typedef struct {
+typedef struct threadcommon{
     pthread_mutex_t lock;
     pthread_cond_t cond;
 
@@ -33,17 +46,17 @@ typedef struct {
     //int socketcount;
     cnode* sockets;
 
+    gamedata game;
+
     // game state and rule variables
-    int turn,val,state,min,valdef;
+    int turn,state,min;
 } threadcommon;
 
-typedef struct {
-    void* 
-} game;
-
-game game_define(){
-    
-}
+int game_numbers_move_check(threadcommon* common, char* string);
+int game_numbers_move_update(threadcommon* common, char* string);
+//void game_numbers_set_default(threadcommon* common);
+void game_reset(threadcommon* common);
+//void game_numbers_turn(threadcommon* common, gamedata* g, char* string);
 
 // client node linked list helper functions
 void client_insert(threadcommon* common);

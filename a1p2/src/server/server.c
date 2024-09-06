@@ -7,8 +7,50 @@
 #include <sys/utsname.h>
 #include <time.h>
 #include <netdb.h>
+#include <string.h>
+#include <math.h>
 #include "../protocol.h"
 #include "server.h"
+
+int game_numbers_move_check(threadcommon* common, char* string){
+    int error = 0;
+    char *errptr;
+    double out = strtod(string,&errptr);
+    if(*errptr != '\0' || out != (char)out) error |= GAME_ERROR_MAL;
+    if((char)out != (char)fmin(fmax(out,1),9)) error |= GAME_ERROR_OOB;
+    return error;
+}
+
+int game_numbers_move_update(threadcommon* common, char* string){
+    char *errptr;
+    char out = (char)strtod(string,&errptr);
+    common->game.data[1] -= out;
+
+    net_buffer buffer_send;
+    buffer_seek(&buffer_send,0);
+    char hout = HEADER_TEXT, string_send[INPUT_MAX];
+    snprintf(string_send,INPUT_MAX*sizeof(char),"current value is %i. enter a number 0-9",common->game.data[1]);
+    buffer_write(&buffer_send,&hout,sizeof(char));
+    buffer_write_string(&buffer_send,string_send);
+    send(common->sockets->data.socket,buffer_send.buffer,buffer_tell(&buffer_send),0);
+
+    if(common->game.data[1] <= 0) return 1;
+    return 0;
+}
+
+/*void game_numbers_set_default(threadcommon* common){
+
+}*/
+
+void game_reset(threadcommon* common){
+    for(int i = 0; common->game.def[i] != '\0'; i++){
+        common->game.data[i] = common->game.def[i];
+    }
+}
+
+/*void game_turn(threadcommon* common, gamedata* g, char* string){
+    snprintf()
+}*/
 
 
 // insert a node into the start of the linked list
@@ -94,7 +136,7 @@ int send_all(threadcommon* common, void* buffer, int size, int target, int rule)
 int main(int argc, char** argv) {
     // server takes 4 arguments, for port, type of game, number of players before it starts (default 2), and the number that the numbers game starts with (default 25)
     if(argc <= 3){
-        printf("wrong number of arguments:\n<int port> <char* game type> <int minimum users*> <int starting number* >");
+        printf("wrong number of arguments:\n<int port> <char* game type> <game args>...");
         return 0;
     }
 
@@ -118,11 +160,23 @@ int main(int argc, char** argv) {
     common.task_count = 0;
     common.all_terminate = 0;
     common.turn = 0;
-    common.valdef = argc >= 5 ? atoi(argv[4]) : 25;
-    common.val = common.valdef;
-    common.min = argc >= 4 ? atoi(argv[3]) : 2;
+    //common.valdef = argc >= 5 ? atoi(argv[4]) : 25;
+    //common.val = common.valdef;
+    //common.min = argc >= 4 ? atoi(argv[3]) : 2;
     common.state = GAME_STATE_WAIT;
     common.sockets = NULL;
+
+    // set game function pointers
+    if(strcmp(argv[2],"numbers") == 0){
+        common.game.handle_move_check = game_numbers_move_check;
+        common.game.handle_move_update = game_numbers_move_update;
+        //common.game.handle_set_defaults = game_numbers_set_default;
+        common.game.handle_set_reset = game_reset;
+        common.game.def[0] = argc >= 4 ? atoi(argv[3]) : 2; // minimum players for numbers
+        common.game.def[1] = argc >= 5 ? atoi(argv[4]) : 25; // starting value for game
+        common.game.def[2] = '\0';
+        common.game.handle_set_reset(&common);
+    }
     
     // create TCP socket
     common.serversock = socket(AF_INET, SOCK_STREAM, 0);
