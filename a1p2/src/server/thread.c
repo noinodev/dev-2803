@@ -15,6 +15,7 @@
 #include "../protocol.h"
 #include "server.h"
 
+// enqueue a cnodeptr for a waiting worker thread to take
 void enqueue(cnode* cptr, threadcommon* common) {
     pthread_mutex_lock(&common->lock);
     common->task_queue[common->task_count++] = cptr;
@@ -22,6 +23,7 @@ void enqueue(cnode* cptr, threadcommon* common) {
     pthread_mutex_unlock(&common->lock);
 }
 
+// take highest cnode* from stack
 cnode* dequeue(threadcommon* common) {
     pthread_mutex_lock(&common->lock);
     while (common->task_count == 0) {
@@ -34,7 +36,8 @@ cnode* dequeue(threadcommon* common) {
 }
 
 void* thread_worker(void* arg) {
-    threadcommon *common = (threadcommon*)arg; // READ ONLY WITHOUT MUTEX LOCK
+    // wait for a cnode* to come into task queue, then run looping handle_client. repeat forever. thread
+    threadcommon *common = (threadcommon*)arg;
     while (1) {
         cnode* cptr = dequeue(common);
         handle_client(common, (void*)cptr);
