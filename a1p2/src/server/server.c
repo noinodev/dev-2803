@@ -7,8 +7,24 @@
 #include <sys/utsname.h>
 #include <time.h>
 #include <netdb.h>
+#include <string.h>
+#include <math.h>
 #include "../protocol.h"
 #include "server.h"
+
+/*void game_numbers_set_default(threadcommon* common){
+
+}*/
+
+void game_reset(threadcommon* common){
+    for(int i = 0; common->game.def[i] != '\0'; i++){
+        common->game.data[i] = common->game.def[i];
+    }
+}
+
+/*void game_turn(threadcommon* common, gamedata* g, char* string){
+    snprintf()
+}*/
 
 
 // insert a node into the start of the linked list
@@ -94,7 +110,7 @@ int send_all(threadcommon* common, void* buffer, int size, int target, int rule)
 int main(int argc, char** argv) {
     // server takes 4 arguments, for port, type of game, number of players before it starts (default 2), and the number that the numbers game starts with (default 25)
     if(argc <= 3){
-        printf("wrong number of arguments:\n<int port> <char* game type> <int minimum users*> <int starting number* >");
+        printf("wrong number of arguments:\n<int port> <char* game type> <game args>...");
         return 0;
     }
 
@@ -118,11 +134,43 @@ int main(int argc, char** argv) {
     common.task_count = 0;
     common.all_terminate = 0;
     common.turn = 0;
-    common.valdef = argc >= 5 ? atoi(argv[4]) : 25;
-    common.val = common.valdef;
-    common.min = argc >= 4 ? atoi(argv[3]) : 2;
+    //common.valdef = argc >= 5 ? atoi(argv[4]) : 25;
+    //common.val = common.valdef;
+    //common.min = argc >= 4 ? atoi(argv[3]) : 2;
     common.state = GAME_STATE_WAIT;
     common.sockets = NULL;
+
+    common.game.handle_move_check = NULL;
+    common.game.handle_move_update = NULL;
+
+    // set game function pointers
+    if(strcmp(argv[2],"numbers") == 0){
+        common.game.handle_move_check = game_numbers_move_check;
+        common.game.handle_move_update = game_numbers_move_update;
+        //common.game.handle_set_defaults = game_numbers_set_default;
+        common.game.def[0] = argc >= 4 ? atoi(argv[3]) : 2; // minimum players for numbers
+        common.game.def[1] = argc >= 5 ? atoi(argv[4]) : 25; // starting value for game
+        common.game.def[2] = '\0';
+        game_reset(&common);
+    }else if(strcmp(argv[2],"rps") == 0){ // other games because this was really easy
+        common.game.handle_move_check = game_rps_move_check;
+        common.game.handle_move_update = game_rps_move_update;
+        //common.game.handle_set_defaults = game_numbers_set_default;
+        common.game.def[0] = argc >= 4 ? atoi(argv[3]) : 2; // minimum players for rock paper scissors
+        common.game.def[1] = 0;
+        common.game.def[2] = 0;
+        //memset(common.game.def+2*sizeof(char),0,sizeof(common.game.def)-2*sizeof(char));
+        common.game.def[3] = '\0';
+        game_reset(&common);
+    }/*else if(strcmp(argv[2],"count") == 0){
+        common.game.handle_move_check = game_count_move_check;
+        common.game.handle_move_update = game_count_move_update;
+        //common.game.handle_set_defaults = game_numbers_set_default;
+        common.game.def[0] = argc >= 4 ? atoi(argv[3]) : 2; // minimum players for counting to 100
+        common.game.def[1] = argc >= 4 ? atoi(argv[3]) : 2;
+        common.game.def[3] = '\0';
+        game_reset(&common);
+    }*/
     
     // create TCP socket
     common.serversock = socket(AF_INET, SOCK_STREAM, 0);

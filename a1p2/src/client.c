@@ -38,27 +38,27 @@ void* network_thread_actor(void* arg){ // thread_actor, thread that performs use
 
         // process input
         char *errptr;
-        int out = (int)strtod(input,&errptr);
-        if(*errptr != '\0' || client->state == GAME_STATE_WAIT){ // user can send text messages if it is not their turn or if they are waiting
+        //int out = (int)strtod(input,&errptr);
+        if(/**errptr != '\0' || */client->state == GAME_STATE_WAIT){ // user can send text messages if it is not their turn or if they are waiting
             if(strcmp(input, "quit") == 0){
                 // user quits
                 hout = HEADER_END;
                 buffer_write(&buffer_send,&hout,sizeof(char));
                 client->terminate = 1;
-            }else{
+            }else if(input[0] == ':'){
                 // user sends text message. i couldve easily made this a protocol error but ip messaging is fun
                 hout = HEADER_TEXT;
                 buffer_write(&buffer_send,&hout,sizeof(char));
-                buffer_write_string(&buffer_send,input);
+                buffer_write_string(&buffer_send,input+sizeof(char));
             }
-        }else{
+        }else if(client->state == GAME_STATE_GO){
             // process input for game move -> clamp 0-9
-            char move = (char)fmax(fmin(out,9),1);
-            if(move != out) printf("%i is out of bounds. im not going to break anything but i will clamp it to %i for you\n",out,move);
+            //char move = (char)fmax(fmin(out,9),1);
+            //if(move != out) printf("%i is out of bounds. im not going to break anything but i will clamp it to %i for you\n",out,move);
 
             hout = HEADER_MOVE;
             buffer_write(&buffer_send,&hout,sizeof(char));
-            buffer_write(&buffer_send,&move,sizeof(char));
+            buffer_write_string(&buffer_send,input);
             
             // set game state to wait after performing turn
             pthread_mutex_lock(&lock);
@@ -109,8 +109,8 @@ void* network_thread_listener(void* arg){ // thread_listener, thread that perfor
 
                 case HEADER_MOVE:
                     // client receives this periodically from the server if it is their turn, in case of error that causes the client to forget, or if they somehow send a bad input
-                    char val = *(int*)buffer_read(&buffer_recv,sizeof(char));
-                    if(client->state != GAME_STATE_GO) printf("it's your turn. current value is %i. enter a number 0->9.\n",val);
+                    //char val = *(int*)buffer_read(&buffer_recv,sizeof(char));
+                    if(client->state != GAME_STATE_GO) printf("it's your turn.\n");
                     client->state = GAME_STATE_GO;
                 break;
 
