@@ -52,7 +52,7 @@ void buffer_write_string(net_buffer* buff, char* string);
 // ambiguous client data struct
 typedef struct {
     int state,socket,terminate,ping;
-    char name[NAME_MAX], type[NAME_MAX];
+    char name[NAME_MAX];
 } clientdata;
 
 #endif

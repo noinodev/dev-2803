@@ -136,7 +136,7 @@ void* network_thread_listener(void* arg){ // thread_listener, thread that perfor
 int main(int argc, char** argv) {
     // client takes 3-4 arguments, the 4th argument being an optional username because i thought that would be fun
     if(argc <= 3){
-        printf("ERROR wrong number of arguments:\n<char* gametype> <char* hostname> <int port> [char* username]>");
+        printf("ERROR wrong number of arguments:\n <char* hostname> <int port> [char* username]>");
         return 0;
     }
 
@@ -145,9 +145,9 @@ int main(int argc, char** argv) {
     
     // connection information. socket descriptor, port from command line, hostname from command line translates to IP. could probably work for DNS hostnames too
     struct sockaddr_in server;
-    int clientsock, port = atoi(argv[3]);
+    int clientsock, port = atoi(argv[2]);
     struct hostent *host;
-    host = gethostbyname(argv[2]);
+    host = gethostbyname(argv[1]);
 
     if (host == NULL) {
         printf("ERROR cannot resolve hostname\n");
@@ -185,9 +185,7 @@ int main(int argc, char** argv) {
     client.socket = clientsock;
     client.terminate = 0;
     client.ping = 1;
-    //memcpy(client.name, argv[1], strlen(argv[1])+1);
-    strncpy(client.name,argc > 4 ? argv[4] : user,NAME_MAX*sizeof(char));
-    strncpy(client.type,argv[1],NAME_MAX*sizeof(char));
+    strncpy(client.name,argc > 3 ? argv[3] : user,NAME_MAX*sizeof(char));
 
     // start actor and listener threads
     pthread_t actor,listener;

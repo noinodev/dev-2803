@@ -49,7 +49,7 @@ typedef struct threadcommon{
     gamedata game;
 
     // game state and rule variables
-    int turn,state,min;
+    int turn,state;
 } threadcommon;
 
 // games function declarations
