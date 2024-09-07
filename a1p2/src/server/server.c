@@ -12,21 +12,6 @@
 #include "../protocol.h"
 #include "server.h"
 
-/*void game_numbers_set_default(threadcommon* common){
-
-}*/
-
-void game_reset(threadcommon* common){
-    for(int i = 0; common->game.def[i] != '\0'; i++){
-        common->game.data[i] = common->game.def[i];
-    }
-}
-
-/*void game_turn(threadcommon* common, gamedata* g, char* string){
-    snprintf()
-}*/
-
-
 // insert a node into the start of the linked list
 void client_insert(threadcommon* common){
     cnode* node = (cnode*)malloc(sizeof(cnode));
@@ -124,13 +109,13 @@ int main(int argc, char** argv) {
     pthread_t thread_pool[THREAD_POOL_SIZE];
     pthread_t actor, listener;
 
-    // disable stdout line buffer, because i was having issues (see client.c also)
+    // disable stdout line buffering, because i was having issues (see client.c also)
     setbuf(stdout, NULL);
 
     // initialize data common between threads because i dont know what a pipe is and i dont want to use global variables ewww
     threadcommon common;
-    common.lock = PTHREAD_MUTEX_INITIALIZER;
-    common.cond = PTHREAD_COND_INITIALIZER;
+    common.lock = PTHREAD_MUTEX_INITIALIZER; // i didnt use these as much as i should
+    common.cond = PTHREAD_COND_INITIALIZER; // race conditions are pretty unlikely in this program anyway, from what ive tested. the threads are blocked 99% of the time and probably never do anything simultaneously
     common.task_count = 0;
     common.all_terminate = 0;
     common.turn = 0;

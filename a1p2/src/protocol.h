@@ -41,7 +41,6 @@ typedef struct {
 } net_buffer;
 
 // buffer declarations
-net_buffer buffer_create();
 void buffer_seek(net_buffer* buff, int seek);
 int buffer_tell(net_buffer* buff);
 void* buffer_read(net_buffer* buff, int size);

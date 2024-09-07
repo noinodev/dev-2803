@@ -12,6 +12,13 @@
 #include "../protocol.h"
 #include "server.h"
 
+// reset
+void game_reset(threadcommon* common){
+    for(int i = 0; common->game.def[i] != '\0'; i++){
+        common->game.data[i] = common->game.def[i];
+    }
+}
+
 // check for errors in input for numbers
 int game_numbers_move_check(threadcommon* common, char* string){
     int error = 0;

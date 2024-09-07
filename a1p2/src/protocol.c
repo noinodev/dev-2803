@@ -7,12 +7,6 @@
 const char* err_game[] = {"move out of bounds and you shouldn't be able to do that","it is not your turn and you shouldn't be able to do that"};
 
 // buffer functions for serialized read/write of network data, using fixed size buffers
-net_buffer buffer_create(){
-    net_buffer buff;
-    memset(buff.buffer, '\0', PACKET_MAX*sizeof(char));
-    buff.pos = 0;
-    return buff;
-}
 
 // reset and return to the start of the buffer, seek in real life doesnt actually clear the buffer but i felt like doing that
 void buffer_seek(net_buffer* buff, int seek){

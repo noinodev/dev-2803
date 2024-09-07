@@ -11,15 +11,12 @@
 #include <netdb.h>
 #include "protocol.h"
 
-pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
-
 void* network_thread_actor(void* arg){ // thread_actor, thread that performs user i/o and send operations
     // get pointer to thread common data, define thread variables and static buffers
     clientdata* client = (clientdata*)arg;
     char input[INPUT_MAX];
     char hout;
-    net_buffer buffer_send = buffer_create();
+    net_buffer buffer_send;
 
     // send argv name to server
     buffer_seek(&buffer_send,0);
@@ -61,9 +58,7 @@ void* network_thread_actor(void* arg){ // thread_actor, thread that performs use
             buffer_write_string(&buffer_send,input);
             
             // set game state to wait after performing turn
-            pthread_mutex_lock(&lock);
             client->state = GAME_STATE_WAIT;
-            pthread_mutex_unlock(&lock);
         }
 
         // send packet to server
@@ -79,8 +74,8 @@ void* network_thread_actor(void* arg){ // thread_actor, thread that performs use
 void* network_thread_listener(void* arg){ // thread_listener, thread that performs recv operations
     // get pointer to thread common data, define thread variables and static buffers
     clientdata* client = (clientdata*)arg;
-    net_buffer buffer_recv = buffer_create();
-    net_buffer buffer_send = buffer_create();
+    net_buffer buffer_recv;
+    net_buffer buffer_send;
     char string[INPUT_MAX];
     char hin,hout;
 
