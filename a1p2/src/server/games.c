@@ -34,7 +34,7 @@ int game_numbers_move_update(threadcommon* common, char* string){
     snprintf(string_send,INPUT_MAX*sizeof(char),"current value is %i. enter a number 0-9",common->game.data[1]);
     buffer_write(&buffer_send,&hout,sizeof(char));
     buffer_write_string(&buffer_send,string_send);
-    send(common->sockets->data.socket,buffer_send.buffer,buffer_tell(&buffer_send),0);
+    send(common->clients->data.socket,buffer_send.buffer,buffer_tell(&buffer_send),0);
 
     if(common->game.data[1] <= 0) return 1;
     return 0;
@@ -78,6 +78,6 @@ int game_rps_move_update(threadcommon* common, char* string){
     snprintf(string_send,INPUT_MAX*sizeof(char),"enter 'rock' 'paper' or 'scissors'");
     buffer_write(&buffer_send,&hout,sizeof(char));
     buffer_write_string(&buffer_send,string_send);
-    send(common->sockets->data.socket,buffer_send.buffer,buffer_tell(&buffer_send),0);
+    send(common->clients->data.socket,buffer_send.buffer,buffer_tell(&buffer_send),0);
     return 0;
 }

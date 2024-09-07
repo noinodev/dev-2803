@@ -93,20 +93,10 @@ void* handle_client(threadcommon* common, void* arg) {
                     }
                     move_post = 0;
 
-                    if(clientptr != common->sockets) move_err |= GAME_ERROR_SEQ; // turn sequence error, this doesnt depend on the game so it stays here
-                    
-
-                    // out of bounds error (OOB) or sequence error (SEQ)
-                    /*if(move != (char)fmin(fmax(move,1),9)) move_invalid |= GAME_ERROR_OOB;
-                    if(clientptr != common->sockets){
-                        move_invalid |= GAME_ERROR_SEQ;
-                        printf("sequence error");
-                    }*/
-
+                    if(clientptr != common->clients) move_err |= GAME_ERROR_SEQ; // turn sequence error, this doesnt depend on the game so it stays here
 
                     if(move_err == 0){
                         // rotate cnode* linked list to move this client to back of turn queue, then update game state
-                        //client_rotate(common);
                         if(common->game.handle_move_update != NULL){
                             client_rotate(common);
                             move_post = common->game.handle_move_update(common,string_recv);
@@ -178,21 +168,21 @@ void* handle_client(threadcommon* common, void* arg) {
                         //common->val = common->valdef;
                         game_reset(common);
                     }else{
-                        // send move packet to next client in queue, which is now the root node of common->sockets linked list
+                        // send move packet to next client in queue, which is now the root node of common->clients linked list
                         buffer_seek(&buffer_send,0);
                         hout = HEADER_MOVE;
                         //char vout = common->val;
                         buffer_write(&buffer_send,&hout,sizeof(char));
                         //buffer_write(&buffer_send,&vout,sizeof(char));
-                        send(common->sockets->data.socket,buffer_send.buffer,buffer_tell(&buffer_send),0);
+                        send(common->clients->data.socket,buffer_send.buffer,buffer_tell(&buffer_send),0);
 
                         // tell all other clients who is taking their turn
-                        snprintf(string_send,INPUT_MAX*sizeof(char),"%s is taking their turn.",common->sockets->data.name);
+                        snprintf(string_send,INPUT_MAX*sizeof(char),"%s is taking their turn.",common->clients->data.name);
                         buffer_seek(&buffer_send,0);
                         hout = HEADER_TEXT;
                         buffer_write(&buffer_send,&hout,sizeof(char));
                         buffer_write_string(&buffer_send,string_send);
-                        send_all(common,buffer_send.buffer,buffer_tell(&buffer_send),common->sockets->data.socket,NETWORK_TARGET_EXCEPT);
+                        send_all(common,buffer_send.buffer,buffer_tell(&buffer_send),common->clients->data.socket,NETWORK_TARGET_EXCEPT);
                     }
                 break;
 
@@ -242,8 +232,8 @@ void* network_thread_actor(void* arg){
 
     // start server control loop
     while(common->all_terminate == 0){
-        // every 1 second, if the root node common->sockets is not null. if its null, there are no players
-        if(clock()-time > CLOCKS_PER_SEC && common->sockets != NULL){
+        // every 1 second, if the root node common->clients is not null. if its null, there are no players
+        if(clock()-time > CLOCKS_PER_SEC && common->clients != NULL){
             // lock resources because this doesnt happen very often but its important
             pthread_mutex_lock(&common->lock);
             time = clock(); // reset clock
@@ -252,9 +242,9 @@ void* network_thread_actor(void* arg){
             int clientcount = client_count(common);
             if(common->state == GAME_STATE_GO){
                 if(clientcount >= common->game.def[0]){
-                    if(turn != common->sockets){
+                    if(turn != common->clients){
                         // player has taken their turn or disconnected, so the turn timer is reset
-                        turn = common->sockets;
+                        turn = common->clients;
                         turntime = clock();
                     }else if(clock()-turntime > NETWORK_TIMEOUT_WAIT*CLOCKS_PER_SEC){
                         // send timeout message to client
@@ -262,18 +252,18 @@ void* network_thread_actor(void* arg){
                         hout = HEADER_TEXT;
                         buffer_write(&buffer_send,&hout,sizeof(char));
                         buffer_write_string(&buffer_send,msg[1]);
-                        send(common->sockets->data.socket,buffer_send.buffer,buffer_tell(&buffer_send),0);
+                        send(common->clients->data.socket,buffer_send.buffer,buffer_tell(&buffer_send),0);
 
                         // tell all other clients that this client was timed out
                         buffer_seek(&buffer_send,0);
                         hout = HEADER_TEXT;
                         buffer_write(&buffer_send,&hout,sizeof(char));
-                        snprintf(string_send,INPUT_MAX*sizeof(char),"%s was removed from the game.",common->sockets->data.name);
+                        snprintf(string_send,INPUT_MAX*sizeof(char),"%s was removed from the game.",common->clients->data.name);
                         buffer_write_string(&buffer_send,string_send);
-                        send_all(common,buffer_send.buffer,buffer_tell(&buffer_send),common->sockets->data.socket,NETWORK_TARGET_EXCEPT);
+                        send_all(common,buffer_send.buffer,buffer_tell(&buffer_send),common->clients->data.socket,NETWORK_TARGET_EXCEPT);
 
                         // disconnect client
-                        network_disconnect(common->sockets);
+                        network_disconnect(common->clients);
                     }
 
                     // remind player that its their turn, in case client loses the packet even though its tcp and that wont happen
@@ -285,7 +275,7 @@ void* network_thread_actor(void* arg){
                     //snprintf(string_send,INPUT_MAX*sizeof(char),"it is your turn");
                     buffer_write_string(&buffer_send,string_send);*/
                     //buffer_write(&buffer_send,&common->val,sizeof(char));
-                    send(common->sockets->data.socket,buffer_send.buffer,buffer_tell(&buffer_send),0);
+                    send(common->clients->data.socket,buffer_send.buffer,buffer_tell(&buffer_send),0);
                 }else{
                     if(clientcount == 1){
                         // there is only 1 player left in an active game state, so they win automatically but also get disconnected.
@@ -294,9 +284,9 @@ void* network_thread_actor(void* arg){
                         hout = HEADER_TEXT;
                         buffer_write(&buffer_send,&hout,sizeof(char));
                         buffer_write_string(&buffer_send,msg[0]);
-                        send(common->sockets->data.socket,buffer_send.buffer,buffer_tell(&buffer_send),0);
+                        send(common->clients->data.socket,buffer_send.buffer,buffer_tell(&buffer_send),0);
 
-                        network_disconnect(common->sockets);
+                        network_disconnect(common->clients);
                     }
                     // reset game state
                     //common->val = common->valdef;
@@ -345,12 +335,12 @@ void* network_thread_listener(void* arg){
             // if game state is wait, add them to the cnode* linked list as the new root node
             char* user = "user";
             client_insert(common);
-            strncpy(common->sockets->data.name,user,sizeof(common->sockets->data.name));
-            common->sockets->data.socket = clientsock;
-            common->sockets->data.terminate = 0;
-            common->sockets->data.ping = NETWORK_TIMEOUT_PING;
+            strncpy(common->clients->data.name,user,sizeof(common->clients->data.name));
+            common->clients->data.socket = clientsock;
+            common->clients->data.terminate = 0;
+            common->clients->data.ping = NETWORK_TIMEOUT_PING;
             printf("joined game\n");
-            enqueue(common->sockets,common);
+            enqueue(common->clients,common);
         }else{
             // if not in wait, send a message that the session is in progress and then disconnect the player without starting their thread
             net_buffer buffer_send = buffer_create();

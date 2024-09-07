@@ -1,40 +1,40 @@
-# Directories
+# build file directories
 SRCDIR = src/
 OBJDIR = out/
 BINDIR = bin/
 
-# Targets
+# targets for local build and install
 TARGETSRV = game_server
 TARGETCLT = game_client
 LOCALSRV = $(BINDIR)server
 LOCALCLT = $(BINDIR)client
 
-# Object files
+# obj sources
 SRCSRV = $(OBJDIR)server.o $(OBJDIR)protocol.o $(OBJDIR)thread.o $(OBJDIR)handler.o $(OBJDIR)games.o
 SRCCLT = $(OBJDIR)client.o $(OBJDIR)protocol.o
 
-# Install directory
+# install dir for command line use
 DIR = /usr/local/bin
 
-# Compiler and flags
+# compiler info
 CC = gcc
 CFLAGS = -c -MMD -MP
 LDFLAGS = -o
 
-# Rules to build
+# build all
 all: server client
 
-# Server target
+# build server
 server: $(SRCSRV)
 	@echo "Linking server"
 	$(CC) $(SRCSRV) $(LDFLAGS) $(LOCALSRV)
 
-# Client target
+# build client
 client: $(SRCCLT)
 	@echo "Linking client"
 	$(CC) $(SRCCLT) $(LDFLAGS) $(LOCALCLT)
 
-# Object files for server
+# object files for server
 $(OBJDIR)server.o: $(SRCDIR)server/server.c
 	$(CC) $(CFLAGS) -Iserver/ $< -o $@
 
@@ -56,23 +56,23 @@ $(OBJDIR)protocol.o: $(SRCDIR)protocol.c $(SRCDIR)protocol.h
 
 # Install/uninstall rules
 installserver: server
-	@echo "Installing server at $(DIR)"
+	@echo "installing server at $(DIR)"
 	@cp $(LOCALSRV) $(DIR)/$(TARGETSRV)
-	@echo "Done."
+	@echo "done."
 
 installclient: client
-	@echo "Installing client at $(DIR)"
+	@echo "installing client at $(DIR)"
 	@cp $(LOCALCLT) $(DIR)/$(TARGETCLT)
-	@echo "Done."
+	@echo "done."
 
 uninstall:
-	@echo "Uninstalling"
+	@echo "uninstalling"
 	@rm -f $(DIR)/$(TARGETSRV) $(DIR)/$(TARGETCLT)
-	@echo "Done."
+	@echo "done."
 
 # Clean rule
 clean:
 	rm -f $(OBJDIR)*.o $(OBJDIR)*.d $(LOCALSRV) $(LOCALCLT)
 
-# Include dependency files
+# gcc generated dependency files
 -include $(OBJDIR)*.d

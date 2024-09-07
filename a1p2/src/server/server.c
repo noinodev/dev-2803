@@ -30,26 +30,26 @@ void game_reset(threadcommon* common){
 // insert a node into the start of the linked list
 void client_insert(threadcommon* common){
     cnode* node = (cnode*)malloc(sizeof(cnode));
-    node->next = common->sockets;
+    node->next = common->clients;
     node->last = NULL;
-    common->sockets = node;
+    common->clients = node;
 }
 
 // remove a node from the linked list
 void client_remove(threadcommon* common,cnode* node){
     if(node->next != NULL) node->next->last = node->last;
     if(node->last != NULL) node->last->next = node->next;
-    else common->sockets = node->next;
+    else common->clients = node->next;
     free(node);
     node = NULL;
 }
 
 // move root node of linked list to the end
 void client_rotate(threadcommon* common){
-    cnode* root = common->sockets;
+    cnode* root = common->clients;
     if(root->next == NULL) return;
-    common->sockets = root->next;
-    common->sockets->last = NULL;
+    common->clients = root->next;
+    common->clients->last = NULL;
 
     cnode* end = root->next;
     while(end->next != NULL) end = end->next;
@@ -62,7 +62,7 @@ void client_rotate(threadcommon* common){
 // count nodes in linked list
 int client_count(threadcommon* common){
     int count = 0;
-    cnode* node = common->sockets;
+    cnode* node = common->clients;
     while(node != NULL){
         //printf("[%i->%i] ",node->data.socket);
         count++;
@@ -79,9 +79,9 @@ void network_disconnect(cnode* node){
     node->data.terminate = 1;
 }
 
-// the same thing but for all clients in the common->sockets linked list
+// the same thing but for all clients in the common->clients linked list
 void network_disconnect_all(threadcommon* common){
-    cnode* node = common->sockets;
+    cnode* node = common->clients;
     char buffer[PACKET_MIN];
     buffer[0] = HEADER_END;
     while(node != NULL){
@@ -93,7 +93,7 @@ void network_disconnect_all(threadcommon* common){
 
 // send a packet to all sockets in cnode*, but also with rules so client threads dont send things to themselves, or if a linear search needs to be done to send to that client (rare case lol)
 int send_all(threadcommon* common, void* buffer, int size, int target, int rule){
-    cnode *node = common->sockets;
+    cnode *node = common->clients;
     int count = 0;
     while(node != NULL){
         int is_in_target = 0, socket = node->data.socket;
@@ -135,7 +135,7 @@ int main(int argc, char** argv) {
     common.all_terminate = 0;
     common.turn = 0;
     common.state = GAME_STATE_WAIT;
-    common.sockets = NULL;
+    common.clients = NULL;
 
     // game function pointers
     common.game.handle_move_check = NULL;

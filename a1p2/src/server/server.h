@@ -4,8 +4,8 @@
 
 //#define PORT 8080
 #define BACKLOG 10
-#define BUF_SIZE 1024
-#define MAXLINE 30
+//#define BUF_SIZE 1024
+//#define MAXLINE 30
 
 #define THREAD_POOL_SIZE 5
 
@@ -43,12 +43,10 @@ typedef struct threadcommon{
     int all_terminate;
 
     // root node of cnode* linked list
-    //int socketcount;
-    cnode* sockets;
-
+    cnode* clients;
     gamedata game;
 
-    // game state and rule variables
+    // game state and turn
     int turn,state;
 } threadcommon;
 
@@ -66,7 +64,6 @@ void client_insert(threadcommon* common);
 void client_remove(threadcommon* common,cnode* node);
 void client_rotate(threadcommon* common);
 int client_count(threadcommon* common);
-//int client_find(threadcommon* common,cnode* node);
 
 // client thread function used in thread pool
 void* handle_client(threadcommon* common, void* arg);
