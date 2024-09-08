@@ -11,12 +11,12 @@
 #include <ftw.h>
 
 const cmd commands[] = {
-	{"calculate", " expr. - evaluate expression in prefix notation. example usage: 'calculate + 5 5' returns '10'", cmd_calculate},
+	{"calculate", " <expr.> - evaluate expression in prefix notation. example usage: 'calculate + 5 5' returns '10'", cmd_calculate},
 	{"time", " - get current system time", cmd_time},
 	{"path", " - get current working directory", cmd_path},
 	{"sys", " - get name and version of OS, and get CPU type", cmd_sys},
-	{"put", " dirname filename(s) [-f] - make a new directory and copy file(s) to it. if directory exists, flag -f will overwrite the directory and its contents. example usage: 'put newfolder  file.txt file2.txt -f'", cmd_put},
-	{"get", " filename - print contents of file 30 lines at a time", cmd_get},
+	{"put", " <dirname> <filename(s)> [-f] - make a new directory and copy file(s) to it. if directory exists, flag -f will overwrite the directory and its contents. example usage: 'put newfolder file.txt file2.txt -f'", cmd_put},
+	{"get", " <filename> - print contents of file 30 lines at a time", cmd_get},
 	{"quit", " - exit program", cmd_quit},
 	{"help", " - see list of commands", cmd_help}, // for fun
 };

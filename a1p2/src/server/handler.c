@@ -24,8 +24,6 @@ void* handle_client(threadcommon* common, void* arg) {
     char string_send[INPUT_MAX], string_recv[INPUT_MAX];
     int read_size, infractions = 0;
 
-    printf("starting thread handler\n");
-
     // start recv loop
     while(common->all_terminate == 0 && client->terminate == 0){
         // reset and recv to i/o buffers, error check

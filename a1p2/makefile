@@ -18,21 +18,20 @@ DIR = /usr/local/bin
 
 # compiler info
 CC = gcc
-CFLAGS = -c -MMD -MP
-LDFLAGS = -o
+CFLAGS = -c# -MMD -MP
 
 # build all
 all: server client
 
 # build server
 server: $(SRCSRV)
-	@echo "Linking server"
-	$(CC) $(SRCSRV) $(LDFLAGS) $(LOCALSRV)
+	@echo "linking server"
+	$(CC) $(SRCSRV) -o $(LOCALSRV)
 
 # build client
 client: $(SRCCLT)
-	@echo "Linking client"
-	$(CC) $(SRCCLT) $(LDFLAGS) $(LOCALCLT)
+	@echo "linking client"
+	$(CC) $(SRCCLT) -o $(LOCALCLT)
 
 # object files for server
 $(OBJDIR)server.o: $(SRCDIR)server/server.c
@@ -66,9 +65,8 @@ uninstall:
 	@rm -f $(DIR)/$(TARGETSRV) $(DIR)/$(TARGETCLT)
 	@echo "done."
 
-# Clean rule
 clean:
 	rm -f $(OBJDIR)*.o $(OBJDIR)*.d $(LOCALSRV) $(LOCALCLT)
 
 # gcc generated dependency files
--include $(OBJDIR)*.d
+#-include $(OBJDIR)*.d

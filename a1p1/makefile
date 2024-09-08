@@ -3,7 +3,7 @@ SRCDIR = src/
 OBJDIR = out/
 BINDIR = bin/
 TARGET = Assignment1P1-Nathanburg
-LOCAL = $(BINDIR)a
+LOCAL = $(BINDIR)shell
 SRC = $(OBJDIR)main.o $(OBJDIR)commands.o $(OBJDIR)file.o
 DIR = /usr/local/bin
 
@@ -21,9 +21,7 @@ $(OBJDIR)file.o: $(SRCDIR)file.c $(SRCDIR)file.h
 
 install:
 	@echo "building and installing $(TARGET) at $(DIR)"
-	@make
-	@echo "build completed"
-	@cp $(TARGET) $(DIR)/$(TARGET)
+	@cp $(LOCAL) $(DIR)/$(TARGET)
 	@echo "done."
 
 uninstall:
