@@ -5,7 +5,7 @@
 //#define PORT 8080
 #define BACKLOG 10
 //#define BUF_SIZE 1024
-//#define MAXLINE 30
+#define MAXLINE 30
 
 #define THREAD_POOL_SIZE 5
 
@@ -19,7 +19,7 @@ typedef struct gamedata {
     int (*handle_move_update)(threadcommon*, char*);
     //void (*handle_set_defaults)(threadcommon* common);
     void (*handle_set_reset)(threadcommon*);
-    char data[64], def[64];
+    char data[64], def[64], name[NAME_MAX];
 } gamedata;
 
 // client node doubly linked list

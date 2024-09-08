@@ -125,19 +125,20 @@ int main(int argc, char** argv) {
     // game function pointers
     common.game.handle_move_check = NULL;
     common.game.handle_move_update = NULL;
+    strncpy(common.game.name,argv[2],NAME_MAX);
 
     // set game function pointers
     if(strcmp(argv[2],"numbers") == 0){
         common.game.handle_move_check = game_numbers_move_check;
         common.game.handle_move_update = game_numbers_move_update;
-        common.game.def[0] = argc >= 4 ? atoi(argv[3]) : 2; // minimum players for numbers
-        common.game.def[1] = argc >= 5 ? atoi(argv[4]) : 25; // starting value for game
+        common.game.def[0] = argc > 3 ? atoi(argv[3]) : 2; // minimum players for numbers
+        common.game.def[1] = argc > 4 ? atoi(argv[4]) : 25; // starting value for game
         common.game.def[2] = '\0';
         game_reset(&common);
     }else if(strcmp(argv[2],"rps") == 0){ // other games because this was really easy
         common.game.handle_move_check = game_rps_move_check;
         common.game.handle_move_update = game_rps_move_update;
-        common.game.def[0] = argc >= 4 ? atoi(argv[3]) : 2; // minimum players for rock paper scissors
+        common.game.def[0] = argc > 3 ? atoi(argv[3]) : 2; // minimum players for rock paper scissors
         common.game.def[1] = 0;
         common.game.def[2] = 0;
         common.game.def[3] = '\0';
@@ -146,10 +147,10 @@ int main(int argc, char** argv) {
     
     // create TCP socket
     common.serversock = socket(AF_INET, SOCK_STREAM, 0);
-    if (common.serversock == -1) {
+    if (common.serversock < 0) {
         printf("Creating socket failed\n");
         exit(1);
-    }
+    }else printf("Socket ok!\n");
     
     // define TCP server address
     common.server.sin_family = AF_INET;
@@ -161,22 +162,23 @@ int main(int argc, char** argv) {
     if(res < 0){
         printf("Bind failed\n");
         exit(1);
-    }
+    }else printf("Bind ok!\n");
     
     // start server listening
     res = listen(common.serversock, BACKLOG);
-    if(res != 0){
+    if(res < 0){
         printf("Listen failed\n");
         exit(1);
-    }
+    }else printf("Listen ok!\n");
 
     // run threads
+    pthread_create(&listener, NULL, network_thread_listener, &common);
     for (int i = 0; i < THREAD_POOL_SIZE; i++) pthread_create(&thread_pool[i], NULL, thread_worker, &common);
     pthread_create(&actor, NULL, network_thread_actor, &common);
-    pthread_create(&actor, NULL, network_thread_listener, &common);
     printf("Server is listening on port %d\n", port);
 
     // join threads and exit
+    for (int i = 0; i < THREAD_POOL_SIZE; i++) pthread_join(thread_pool[i], NULL);
     pthread_join(actor,NULL);
     pthread_join(listener,NULL);
     return 0;

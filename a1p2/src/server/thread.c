@@ -30,7 +30,6 @@ cnode* dequeue(threadcommon* common) {
         pthread_cond_wait(&common->cond, &common->lock);
     }
     cnode* cptr = common->task_queue[--common->task_count];
-    //printf("socket should: %i\n",cptr->data.socket);
     pthread_mutex_unlock(&common->lock);
     return cptr;
 }

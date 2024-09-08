@@ -47,21 +47,17 @@ $(OBJDIR)handler.o: $(SRCDIR)server/handler.c
 $(OBJDIR)games.o: $(SRCDIR)server/games.c
 	$(CC) $(CFLAGS) -Iserver/ $< -o $@
 
-# Object files for client and shared protocol
+# object files for client and shared protocol
 $(OBJDIR)client.o: $(SRCDIR)client.c
 	$(CC) $(CFLAGS) $< -o $@
 
 $(OBJDIR)protocol.o: $(SRCDIR)protocol.c $(SRCDIR)protocol.h
 	$(CC) $(CFLAGS) $< -o $@
 
-# Install/uninstall rules
-installserver: server
+# install to usr/local/bin as game_server and game_client for shell command use
+install: all
 	@echo "installing server at $(DIR)"
 	@cp $(LOCALSRV) $(DIR)/$(TARGETSRV)
-	@echo "done."
-
-installclient: client
-	@echo "installing client at $(DIR)"
 	@cp $(LOCALCLT) $(DIR)/$(TARGETCLT)
 	@echo "done."
 

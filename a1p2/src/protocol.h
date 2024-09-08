@@ -6,7 +6,7 @@
 
 // buffer sizing macros
 #define INPUT_MAX 128
-#define PACKET_MAX 256
+#define PACKET_MAX 1024
 #define PACKET_MIN 2
 #define NAME_MAX 32
 

@@ -34,25 +34,20 @@ void* network_thread_actor(void* arg){ // thread_actor, thread that performs use
         input[strcspn(input, "\n")] = '\0';
 
         // process input
-        char *errptr;
-        //int out = (int)strtod(input,&errptr);
-        if(/**errptr != '\0' || */client->state == GAME_STATE_WAIT){ // user can send text messages if it is not their turn or if they are waiting
+        if(client->state == GAME_STATE_WAIT){
             if(strcmp(input, "quit") == 0){
                 // user quits
                 hout = HEADER_END;
                 buffer_write(&buffer_send,&hout,sizeof(char));
                 client->terminate = 1;
-            }else if(input[0] == ':'){
+            }else{
                 // user sends text message. i couldve easily made this a protocol error but ip messaging is fun
                 hout = HEADER_TEXT;
                 buffer_write(&buffer_send,&hout,sizeof(char));
-                buffer_write_string(&buffer_send,input+sizeof(char));
+                buffer_write_string(&buffer_send,input/*+sizeof(char)*/);
             }
         }else if(client->state == GAME_STATE_GO){
-            // process input for game move -> clamp 0-9
-            //char move = (char)fmax(fmin(out,9),1);
-            //if(move != out) printf("%i is out of bounds. im not going to break anything but i will clamp it to %i for you\n",out,move);
-
+            // the client doesn't need to sanitize its own input because the server knows
             hout = HEADER_MOVE;
             buffer_write(&buffer_send,&hout,sizeof(char));
             buffer_write_string(&buffer_send,input);
@@ -62,11 +57,11 @@ void* network_thread_actor(void* arg){ // thread_actor, thread that performs use
         }
 
         // send packet to server
-        int res;
+        int res = 0;
         if(buffer_tell(&buffer_send) > 0) res = send(client->socket,buffer_send.buffer,buffer_tell(&buffer_send),0);
         if (res < 0) {
-            printf("ERROR sending data to server failed");
-            exit(1);
+            perror("ERROR sending data to server failed");
+            client->terminate = 1;
         }
     }
 }
@@ -87,8 +82,11 @@ void* network_thread_listener(void* arg){ // thread_listener, thread that perfor
         int res = recv(client->socket, buffer_recv.buffer, PACKET_MAX, 0);
         buffer_recv.buffer[res] = '\0';
         if(res <= 0){
-            printf("ERROR lost connection to server\n");
+            if(res < 0) perror("ERROR recv error");
+            else printf("ERROR lost connection to server\n");
+            close(client->socket);
             client->terminate = 1;
+            continue;
         }
         // get header for packet
         hin = *(char*)buffer_read(&buffer_recv,sizeof(char));
@@ -144,12 +142,13 @@ int main(int argc, char** argv) {
     struct hostent *host;
     host = gethostbyname(argv[1]);
 
+    char* ipaddr;
     if (host == NULL) {
         printf("ERROR cannot resolve hostname\n");
         return 0;
     }
-
-    char* ipaddr = inet_ntoa(*(struct in_addr*)host->h_addr_list[0]);
+        
+    ipaddr = inet_ntoa(*(struct in_addr*)host->h_addr_list[0]);
 
     // define target -> TCP server at ipaddr:port
     server.sin_addr.s_addr = inet_addr(ipaddr);
@@ -162,11 +161,12 @@ int main(int argc, char** argv) {
         perror("ERROR cannot create socket");
         return 0;
     }
-    printf("Attempting to connect to %s[%s:%i]... ",argv[2],ipaddr,port);
+
+    printf("Attempting to connect to %s[%s:%i]... ",argv[1],ipaddr,port);
 
     // attempt connection
     int res = connect(clientsock, (struct sockaddr *) &server, sizeof(server));
-    if (res == -1) {
+    if (res < 0) {
         printf("ERROR connection failed\n");
         return 0;
     }
@@ -174,7 +174,7 @@ int main(int argc, char** argv) {
     printf("you can send text messages at any time. sending 'quit' terminates the connection.\n");
 
     // initialize client thread common data
-    char* user = "user";
+    char* user = "userclient";
     clientdata client;
     client.state = GAME_STATE_WAIT;
     client.socket = clientsock;
@@ -190,7 +190,7 @@ int main(int argc, char** argv) {
     // wait for listener thread to finish, meaning it receives a bad packet or HEADER_END
     pthread_join(listener, NULL);
     pthread_cancel(actor); // serious hack because i dont want to over complicate the input stream by using anything other than fgets
-    close(clientsock);
+    //close(clientsock);
     printf("goodbye!\n");
     return 0;
 }

@@ -24,8 +24,10 @@ void* handle_client(threadcommon* common, void* arg) {
     char string_send[INPUT_MAX], string_recv[INPUT_MAX];
     int read_size, infractions = 0;
 
+    printf("starting thread handler\n");
+
     // start recv loop
-    while(common->all_terminate || client->terminate){
+    while(common->all_terminate == 0 && client->terminate == 0){
         // reset and recv to i/o buffers, error check
         buffer_seek(&buffer_recv,0);
         buffer_seek(&buffer_send,0);
@@ -90,8 +92,8 @@ void* handle_client(threadcommon* common, void* arg) {
                         buffer_write_string(&buffer_send,string_send);
                         send_all(common,buffer_send.buffer,buffer_tell(&buffer_send),socket,NETWORK_TARGET_TO);
                     }
-                    move_post = 0;
 
+                    move_post = 0;
                     if(clientptr != common->clients) move_err |= GAME_ERROR_SEQ; // turn sequence error, this doesnt depend on the game so it stays here
 
                     if(move_err == 0){
@@ -323,7 +325,8 @@ void* network_thread_listener(void* arg){
             continue;
         }
 
-        if(common->state == GAME_STATE_WAIT){
+        int count = client_count(common);
+        if(common->state == GAME_STATE_WAIT && count < THREAD_POOL_SIZE){
             // if game state is wait, add them to the cnode* linked list as the new root node
             char* user = "user";
             client_insert(common);
@@ -331,12 +334,21 @@ void* network_thread_listener(void* arg){
             common->clients->data.socket = clientsock;
             common->clients->data.terminate = 0;
             common->clients->data.ping = NETWORK_TIMEOUT_PING;
-            printf("joined game\n");
+
+            net_buffer buffer_send;
+            char hout, strout[INPUT_MAX];
+            snprintf(strout,INPUT_MAX,"welcome to the game! currently playing %s",common->game.name);
+            buffer_seek(&buffer_send,0);
+            hout = HEADER_TEXT;
+            buffer_write(&buffer_send,&hout,sizeof(char));
+            buffer_write_string(&buffer_send,strout);
+            send(clientsock,buffer_send.buffer,buffer_tell(&buffer_send),0);
+
             enqueue(common->clients,common);
         }else{
             // if not in wait, send a message that the session is in progress and then disconnect the player without starting their thread
             net_buffer buffer_send;
-            char hout, *strout = "kicked because the session is currently active";
+            char hout, *strout = "the server is not currently accepting connections";
             buffer_seek(&buffer_send,0);
             hout = HEADER_TEXT;
             buffer_write(&buffer_send,&hout,sizeof(char));
@@ -344,7 +356,6 @@ void* network_thread_listener(void* arg){
             hout = HEADER_END;
             buffer_write(&buffer_send,&hout,sizeof(char));
             send(clientsock,buffer_send.buffer,buffer_tell(&buffer_send),0);
-
             close(clientsock);
         }
     }
