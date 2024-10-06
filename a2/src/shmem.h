@@ -5,7 +5,10 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <semaphore.h>
 #include <sys/sem.h>
+
+// i hate cygwin i hate cygwin
 
 #define u8 unsigned char
 #define u16 unsigned short
@@ -24,14 +27,14 @@
 
 // should make it clear that i could NOT get semaphores to compile in cygwin, so im using shmem mutexes
 typedef struct shm_read {
-    pthread_mutex_t lock;
+    //pthread_mutex_t lock;
+    sem_t* sem;
+    sem_t* sem_pool[POOL];
     volatile u32 clientslot;
     volatile u8 clientflag;
     volatile u8 serverflag[POOL];
     volatile u32 slot[POOL];
     volatile double load[POOL];
-    pthread_mutex_t slotlock[POOL];
-    pthread_cond_t slotcond[POOL];
 } shm_read;
 
 /*typedef struct task {

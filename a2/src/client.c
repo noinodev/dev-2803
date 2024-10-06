@@ -4,6 +4,7 @@
 #include <poll.h>
 #include <pthread.h>
 #include <sys/sem.h>
+#include <semaphore.h>
 #include "shmem.h"
 
 //double progress[POOL];
@@ -24,14 +25,14 @@ void page_test(shm_read* data){
 }
 
 u8 push(shm_read* data,char* buffer){
-    pthread_mutex_lock(&data->lock);
+    sem_wait(data->sem);
     char* endptr;
     u32 i = strtoul(buffer,&endptr,10);
     if(endptr == NULL || (*endptr != '\0' && *endptr != '\n')) return 0;
     printf("PUSH! %i %d\n",i,*endptr);
     data->clientslot = i;
     data->clientflag = 1;
-    pthread_mutex_unlock(&data->lock);
+    sem_post(data->sem);
     return 1;
 }
 
@@ -40,13 +41,14 @@ void* listener(void* arg){
     for(;;){
 
         bar_count = 0;
+        pthread_mutex_lock(&lock);
         memset(load,0,POOL*sizeof(double));
         //printf("a");
-        pthread_mutex_lock(&lock);
         for(int i = 0; i < POOL; i++){
             //pthread_mutex_lock(&data->slotlock[i]);
             //page(data);
             //printf("b");
+            sem_wait(data->sem_pool[i]);
             if(data->serverflag[i] != SLOT_EMPTY){
                 //printf("c[%u,%lf]",data->serverflag[i],data->load[i]);
                 load[bar_count] = data->load[i];
@@ -55,9 +57,10 @@ void* listener(void* arg){
                 if(data->serverflag[i] == SLOT_READY){
                     printf("Factor found: [%i] -> %u\n",i,data->slot[i]);
                     data->serverflag[i] = SLOT_WORKING;
-                    pthread_cond_signal(&data->slotcond[i]);
+                    //pthread_cond_signal(&data->slotcond[i]);
                 }
             }
+            sem_post(data->sem_pool[i]);
 
             //pthread_mutex_unlock(&data->slotlock[i]);
         }
@@ -88,8 +91,8 @@ int main(int argc, char** argv){
 
 
     printf("CLIENT STARTING\n");
-    pthread_mutex_lock(&data->lock);
-    printf("IF MUTEX IS WORKING THIS SHOULD NOT PRINT\n");
+    sem_wait(data->sem);
+    printf("IF SEMAPHORE IS WORKING THIS SHOULD NOT PRINT\n");
 
     pthread_t listener_thread;
     pthread_create(&listener_thread,NULL,listener,(void*)data);

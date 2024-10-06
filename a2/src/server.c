@@ -13,6 +13,7 @@
 #include <sys/stat.h>
 #include <sys/sem.h>
 #include <sys/wait.h>
+#include <semaphore.h>
 #include "shmem.h"
 
 // Task struct for queue
@@ -97,25 +98,25 @@ void* worker_thread(void* arg){
             //printf("post\n");
             //data->load[slot] = data->load[slot]+(100./SHIFTS)/(lim*.5);
             if(val%i==0){
-                pthread_mutex_lock(&data->slotlock[slot]);
+                sem_wait(data->sem_pool[slot]);
                 c++; 
                 //printf("p");
                 data->serverflag[slot] = SLOT_READY;
                 data->slot[slot] = i;
                 printf("Factor of %u <lim: %u>: [%u] -> %u ::: %lf\n",val,lim,slot,i,data->load[slot]);
-                while(data->serverflag[slot] == SLOT_READY){
+                /*while(data->serverflag[slot] == SLOT_READY){
                     printf("send....");
                     pthread_cond_wait(&data->slotcond[slot],&data->slotlock[slot]);
                     printf("RECV\n");
-                }
-                pthread_mutex_unlock(&data->slotlock[slot]);
+                }*/
+                sem_post(data->sem_pool[slot]);
                 usleep(100);
             }//else printf("p");
         }
 
-        pthread_mutex_lock(&data->lock);
+        sem_wait(data->sem);
         data->load[slot] += (1./SHIFTS);
-        pthread_mutex_unlock(&data->lock);
+        sem_post(data->sem);
 
         printf("finished task %u [%u, %i primes] + wrote to %u status slot\n",slot,this.value,c,32*slot+this.offset);
         status[32*slot+this.offset] = 1;
@@ -154,7 +155,7 @@ int main(int argc, char** argv){
     printf("workers ok\n");
 
     printf("LOCKING DOWN SERVER");
-    pthread_mutex_lock(&data->lock);
+    sem_wait(data->sem);
     while(1);
 
     // do
@@ -171,8 +172,8 @@ int main(int argc, char** argv){
 
 
 
-        //sem_wait(data->sem);
-        pthread_mutex_lock(&data->lock);
+        sem_wait(data->sem);
+        //pthread_mutex_lock(&data->lock);
 
         /*printf("\033[s");
         printf("\033[5A");
@@ -187,11 +188,13 @@ int main(int argc, char** argv){
             printf("POP! %u\n",process);
             u8 slot = SLOT_BUSY;
             for(int i = 0; i < POOL; i++){
+                sem_wait(data->sem_pool[i]);
                 if(data->serverflag[i] == SLOT_EMPTY){
                     slot = i;
                     data->serverflag[i] = SLOT_WORKING;
                     break;
                 }else printf("%ino\n",i);
+                sem_post(data->sem_pool[i]);
             }
             if(slot == SLOT_BUSY) break;//printf("busy!\n");
             data->clientflag = 0;
@@ -232,9 +235,9 @@ int main(int argc, char** argv){
             }*/
         }
 
-        pthread_mutex_unlock(&data->lock);
+        //sem_post(&data->sem);
         //usleep(1);
-        //sem_post(data->sem);
+        sem_post(data->sem);
     }
 
     for(int i = 0; i < POOL*SHIFTS; i++) pthread_cancel(workers[i]);
