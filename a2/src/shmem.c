@@ -7,9 +7,12 @@
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <pthread.h>
+#include <time.h>
 #include <errno.h>
 #include <semaphore.h>
 #include "shmem.h"
+
+char sem_name[1+POOL*2][16] = {"/SEM_MAIN"};
 
 shm_read* shm_create(int* shm_fd, u8 owner){
     *shm_fd = shm_open("/SHMEM",O_CREAT|O_RDWR,0666);
@@ -32,22 +35,62 @@ shm_read* shm_create(int* shm_fd, u8 owner){
     }else printf("map ok\n");
 
     // sempahores
-    if(owner){
-        memset(data,0,sizeof(shm_read));
+    if(owner) memset(data,0,sizeof(shm_read));
+        data->sem = sem_open(sem_name[0], O_CREAT,0666,1);
+        /*if(data->sem == 0) perror("sem:");
         for(int i = 0; i < POOL; i++){
-
-        }
-    }
+            snprintf(sem_name[1+i],sizeof(sem_name[1+i]),"/SEM_POOL_%i",i);
+            printf("sem_pool: %s\n",sem_name[1+i]);
+            data->sem_pool[i] = sem_open(sem_name[1+i],O_CREAT,0666,1);
+            snprintf(sem_name[1+POOL+i],sizeof(sem_name[1+POOL+i]),"/SEM_UPDATE_%i",i);
+            data->sem_update[i] = sem_open(sem_name[1+POOL+i],O_CREAT,0666,1);
+        }*/
+    //}
     return data;
 }
 
 void shm_destroy(int* shm_fd, shm_read* data, u8 owner){
     if(owner){
-        for(int i = 0; i < POOL; i++){
-        }
+        sem_close(data->sem);
+        sem_unlink(sem_name[0]);
+        /*for(int i = 0; i < POOL; i++){
+            sem_close(data->sem_pool[i]);
+            sem_unlink(sem_name[1+i]);
+            sem_close(data->sem_update[i]);
+            sem_unlink(sem_name[1+POOL+i]);
+        }*/
     }
     munmap(data, sizeof(shm_read));
     close(*shm_fd);
     if(owner) shm_unlink("/SHMEM");
+}
+
+void print_bars(State* state, int bar_width, int bar_count){
+    printf("\033[s");
+    int mov = 0;
+    printf("\r");
+    for(int i = 0; i < bar_count; i++){
+        double d = state[i].load;
+        if(d > 0){
+            if(mov == 0){
+                printf("\033[16A");
+                for(int i = 0; i < 6; i++){
+                    printf("\033[K");
+                    printf("\n");
+                    printf("\033[K");
+                }
+            }
+            mov = 1;
+            printf("<Q%i : %is : %lf%%>",i,state[i].time/CLOCKS_PER_SEC,(d*100));
+            printf("[");
+            for(int j = 0; j < bar_width; j++){
+                char k = '.';
+                if(j < d*(bar_width)) k = '|';
+                printf("%c",k);
+            }
+            printf("] , ");
+        }
+    }
+    printf("\033[u");
 }
 

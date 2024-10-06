@@ -25,16 +25,25 @@
 #define SLOT_READY 2
 #define SLOT_BUSY 255
 
+typedef struct State{
+    double load;
+    int time;
+    int tasks;
+} State;
+
 // should make it clear that i could NOT get semaphores to compile in cygwin, so im using shmem mutexes
+// ADDENDUM cygwin environment doesnt support shmem mutexes which is LOVELY because i had to start again and eventually figure out how to get semaphore.h to work
 typedef struct shm_read {
     //pthread_mutex_t lock;
     sem_t* sem;
-    sem_t* sem_pool[POOL];
+    //sem_t* sem_pool[POOL];
+    //sem_t* sem_update[POOL];
     volatile u32 clientslot;
     volatile u8 clientflag;
     volatile u8 serverflag[POOL];
     volatile u32 slot[POOL];
-    volatile double load[POOL];
+    //volatile double load[POOL];
+    volatile State state[POOL];
 } shm_read;
 
 /*typedef struct task {
@@ -44,5 +53,6 @@ typedef struct shm_read {
 
 shm_read* shm_create(int* shm_fd, u8);
 void shm_destroy(int* shm_fd, shm_read* shm, u8);
+void print_bars(State* state, int bar_width, int bar_count);
 
 #endif
