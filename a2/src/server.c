@@ -2,23 +2,18 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/utsname.h>
 #include <time.h>
-#include <netdb.h>
 #include <string.h>
 #include <math.h>
 #include <poll.h>
-#include <fcntl.h>
 #include <sys/mman.h>
-#include <sys/stat.h>
-#include <sys/sem.h>
-#include <sys/wait.h>
 #include <semaphore.h>
 #include "shmem.h"
 
 #define QUEUE_SIZE 8192
 
-// Task struct for queue
+// task struct for queue
+// function pointer for work was fun
 struct Task;
 typedef struct Task {
     u8 slot;
@@ -26,7 +21,7 @@ typedef struct Task {
     void (*work)(shm_read*,struct Task*);
 } Task;
 
-// Circular queue
+// circular buffer
 typedef struct {
     Task tasks[QUEUE_SIZE];
     int count,head,tail;
@@ -34,11 +29,13 @@ typedef struct {
     pthread_cond_t cond;
 } TaskQueue;
 
+// global variables
 pthread_mutex_t lock;
 TaskQueue input;
 TaskQueue output;
 State state[POOL];
 
+// queue init/destroy functions
 void queue_list_init(TaskQueue* q){
     pthread_mutex_init(&q->lock,NULL);
     pthread_cond_init(&q->cond,NULL);
@@ -53,71 +50,60 @@ void queue_list_destroy(TaskQueue* q){
     pthread_cond_destroy(&q->cond);
 }
 
+// queue push and pop functions
+// non blocking enqueue
 int enqueue(TaskQueue* q, size_t size, Task* i){
-    //while(q->count >= POOL){usleep(100);}
-    //while (q->count >= sizeof(q->tasks) / sizeof(Task)) pthread_cond_wait(&q->cond, &q->lock);
-    if(q->count >= QUEUE_SIZE){
-        printf("NQ FAIL: %i\n",q->count);
-        return -1;
-    }
+    if(q->count >= QUEUE_SIZE) return -1;
+
+    // lock and copy arg to buffer
     pthread_mutex_lock(&q->lock);
-    //printf("cpy...");
     memcpy(&q->tasks[q->tail],i,size);
     q->tail = (q->tail+1)%QUEUE_SIZE;
     q->count++;
-    //printf("signal...");
     pthread_cond_signal(&q->cond);
     pthread_mutex_unlock(&q->lock);
     return 0;
-    //printf("ok!\n");
-    //printf("EQ: s:%i, %u/%u\n",i->slot, q->tasks[q->count-1].value, i->value);
-    //usleep(1);
 }
 
+// blocking dequeue, for dequeueing on worker threads
 void dequeue(TaskQueue* q, size_t size, Task* out){
-    //while(q->count == 0){usleep(10);}
-    //printf("dq: ");
-    //printf(".");
+    // lock and copy buffer to arg
     pthread_mutex_lock(&q->lock);
+    // wait for enqueue signal
     while (q->count == 0) pthread_cond_wait(&q->cond, &q->lock);
     memcpy(out,&q->tasks[q->head],size);
     q->head = (q->head+1)%QUEUE_SIZE;
     q->count--;
-    //printf("DQ: %u\n",out->value);
-    pthread_cond_signal(&q->cond);
+    pthread_cond_signal(&q->cond); // not really needed, enqueue used to be blocking but i changed it
     pthread_mutex_unlock(&q->lock);
-    //usleep(1);
 }
 
+// non blocking dequeue, for dequeueing on the main thread
 int dequeue_nb(TaskQueue* q, size_t size, Task* out){
-    //while(q->count == 0){usleep(10);}
-    //printf("dq: ");
-    //printf(".");
     if(q->count == 0) return -1;
+
+    // lock and copy buffer to arg
     pthread_mutex_lock(&q->lock);
     memcpy(out,&q->tasks[q->head],size);
     q->head = (q->head+1)%QUEUE_SIZE;
     q->count--;
-    //printf("DQ: %u\n",out->value);
     pthread_cond_signal(&q->cond);
-
     pthread_mutex_unlock(&q->lock);
     return 0;
-    //usleep(1);
 }
 
+
+// task work functions for worker thread
 void work_trialdivision(shm_read* data, Task* task){
-    //printf("trialdiv\n");
     u8 slot = task->slot;
     u32 val = task->value;
     int lim = sqrt(val);
     u32 i = 2;
-    //printf("val:%i\n",val);
-    double total_space = 1./SHIFTS;
+
+    // fractional value of each iteration in the loop, respecting load
     double local_space = (1./SHIFTS)/(lim*.5);
     int c = 0;
     
-    //printf("val: %i\n",val);
     for(int i = 2; i <= lim; i += 2){
         c++;
         //printf("%u\n",i);
@@ -125,23 +111,25 @@ void work_trialdivision(shm_read* data, Task* task){
         state[slot].load += local_space;
         pthread_mutex_unlock(&lock);
         if(val%i==0){
+            // found factor
+            // push factor to output queue
             Task task;
             task.slot = slot;
             task.value = i;
             task.work = NULL;
             enqueue(&output,sizeof(Task),&task);
-            //printf("Factor found: %u\n",i);
         }
-        if(i == 2) i++;
-        if(c%100 == 0)usleep(1);
+        if(i == 2) i--;
+        if(c%40 == 0)usleep(1); // no if made it too slow, no sleep made it too fast. good medium
     }
 }
 
+// test mode work function
 void work_test(shm_read* data, Task* task){
     u8 slot = task->slot;
     u32 val = task->value;
 
-    //for(int i = 0; i < 10; i++){
+    // wait a bit of time, lock and push value to output queue 
     usleep((10+rand()%90)*1000);
     pthread_mutex_lock(&lock);
     Task that;
@@ -150,19 +138,21 @@ void work_test(shm_read* data, Task* task){
     that.work = NULL;
     enqueue(&output,sizeof(Task),&that);
     pthread_mutex_unlock(&lock);
-    //}
 }
 
+// task to indicate the sequence is finished and the slot should become available
 void work_finish(shm_read* data, Task* task){
     u8 slot = task->slot;
 
+    // synchronize local state with shmem for client
     printf("slot %i finished in %i seconds\n",slot,data->state[slot].time);
     data->serverflag[slot] = SLOT_FINISHED;
     data->state[slot].load = state[slot].load; 
     data->state[slot].time = time(NULL)-state[slot].time;
     data->state[slot].tasks = state[slot].tasks;
-    sem_post(data->sem);
+    sem_post(data->sem); // when the function is called the thread should be holding sem
 
+    // wait for client to respond, about 10ms
     int wait = 1;
     while(data->serverflag[slot] == SLOT_FINISHED){
         usleep(wait);
@@ -172,6 +162,8 @@ void work_finish(shm_read* data, Task* task){
             break;
         }
     }
+
+    // reset shared slot and local state for slot
     sem_wait(data->sem);
     data->serverflag[slot] == SLOT_EMPTY;
     state[slot].tasks = 0;
@@ -179,30 +171,34 @@ void work_finish(shm_read* data, Task* task){
     state[slot].load = 0;
 }
 
+// worker thread function, dequeue task and operate
 void* worker_thread(void* arg){
     shm_read* data = (shm_read*)arg;
-    //printf(".");
     for(;;){
+        // wait for task to become available
         Task this;
         dequeue(&input,sizeof(Task),&this);
 
+        // execute task function pointer
         if(this.work != NULL) this.work(data,&this);
 
+        // increment task counter for slot, eg. trial division has 32 tasks
         pthread_mutex_lock(&lock);
         state[this.slot].tasks++;
+
+        // if all tasks are finished, push a work_finish task to output queue so edt can synchronize
         if(state[this.slot].tasks >= state[this.slot].tasks_total){
-            //printf("finisher task\n");
             Task that;
             that.slot = this.slot;
             that.value = 0;
             that.work = work_finish;
             enqueue(&output,sizeof(Task),&that);
         }   
-        //printf("tasks: %u/%i\n",state[this.slot].tasks,SHIFTS);
         pthread_mutex_unlock(&lock);
     }
 }
 
+// get next available slot in shared memory and set it to working
 u8 slot_get(shm_read* data){
     u8 slot = SLOT_BUSY;
     for(int i = 0; i < POOL; i++){
@@ -212,45 +208,45 @@ u8 slot_get(shm_read* data){
             return slot;
         }
     }
-    //if(slot == SLOT_BUSY){
-        //data->clientflag = SLOT_BUSY;
-        //sem_post(data->sem);
     printf("the server is busy\n");
-    return slot;//printf("busy!\n");
-    //}
-    //data->slot[slot] = 0;
-    //return slot;
+    return slot;
 }
 
 int main(int argc, char** argv){
+    // initialize poll
     struct pollfd fds[1];
     fds[0].fd = 0;
     fds[0].events = POLLIN;
+
+    // initialize shm and sem
     int shm_fd;
     shm_read* data = shm_create(&shm_fd,1);
 
+    // set stdout to non-buffering
     setbuf(stdout, NULL);
-    printf("\033[2J");
+    printf("\033[2J"); // clear terminal (ascii escape mi amor)
 
     queue_list_init(&input);
-    queue_list_init(&output);
+    queue_list_init(&output); // initialize global i/o queues
 
-    memset(state,0,POOL*sizeof(State));
+    memset(state,0,POOL*sizeof(State)); // initialize local global state
     
-    printf("queues ok\n");
+    printf("queues ok\n"); // debug
 
-    pthread_mutex_init(&lock,NULL);
+    pthread_mutex_init(&lock,NULL); // init server mutex
 
 
-    // processing
+    // initialize thread pool
     const int cc = POOL*SHIFTS;
     pthread_t workers[cc];
     for(int i = 0; i < cc; i++) pthread_create(&workers[i],NULL,worker_thread,(void*)&data);
     u8 count = 0;
     printf("workers ok\n");
 
+    // begin event loop
     for(;;){
         // supposedly shmem isnt released at program close so i have a graceful exit on server just in case
+        // poll input for quit
         int ret = poll(fds,1,0);
         if(ret > 0 && fds[0].revents & POLLIN){
             // receive input
@@ -259,11 +255,14 @@ int main(int argc, char** argv){
             if(strncmp(buffer_input,"quit",4) == 0) break;
         }
 
+        // check if client has sent something
         sem_wait(data->sem);
         if(data->clientflag == 1){
 
             u32 process = data->clientslot;
             if(process == 0){
+                // user trying test mode
+                // make sure the server isnt doing anything before going into test mode
                 u8 can_test = 1;
                 for(int i = 0; i < POOL; i++){
                     if(data->serverflag[i] != SLOT_EMPTY){
@@ -272,6 +271,8 @@ int main(int argc, char** argv){
                     }
                 }
                 if(can_test == 1){
+                    // run 3 slots with 10 tasks each with corresponding numbers to push
+                    // work_test function pointer
                     printf("--TESTING MODE--\n");
                     for(int i = 0; i < 3; i++){
                         u8 slot = slot_get(data);
@@ -290,9 +291,9 @@ int main(int argc, char** argv){
                     }
                 }
             }else{
+                // push 32 tasks to whatever slot it can get
+                // work_trialdivision function pointer
                 u8 slot = slot_get(data);
-                printf("POP! %u to slot: %u\n",process,slot);
-
                 if(slot != SLOT_BUSY){
                     state[slot].load = 0;
                     state[slot].tasks = 0;
@@ -313,56 +314,37 @@ int main(int argc, char** argv){
             data->clientslot = 0;
         }
 
-        //sem_wait(data->sem);
         // synchronizer loop because shmem isnt working the way i need it to
+        // print loading bars and copy local state to shared memory start
         print_bars(state,10,POOL);
         for(int i = 0; i < POOL; i++){
             data->state[i].load = state[i].load;
             data->state[i].time = time(NULL)-state[i].time;
             data->state[i].tasks = state[i].tasks;
             data->state[i].tasks_total = state[i].tasks_total;
-            /*if(state[i].tasks >= SHIFTS){
-                printf("slot %i finished in %i seconds\n",i,data->state[i].time);
-                data->serverflag[i] = SLOT_FINISHED;
-                data->state[i].load = state[i].load; 
-                data->state[i].time = time(NULL)-state[i].time;
-                data->state[i].tasks = state[i].tasks;
-                sem_post(data->sem);
-
-                int wait = 1;
-                while(data->serverflag[i] == SLOT_FINISHED){
-                    usleep(wait);
-                    wait *= 2;
-                    if(wait > 8192){
-                        printf("client no ack finish %i\n",wait);
-                        break;
-                    }
-                }
-                sem_wait(data->sem);
-                data->serverflag[i] == SLOT_EMPTY;
-                state[i].tasks = 0;
-                state[i].time = 0;
-                state[i].load = 0;
-            }*/
         }
         sem_post(data->sem);
 
+        // dequeue output queue, for dispatching results to client. shmem only works properly on this thread so i just had to do it this way
         Task this = {0,0,NULL};
         int dq = dequeue_nb(&output,sizeof(Task),&this);
         if(dq != -1){
-            //while(data->serverflag[this.slot] == SLOT_FINISHED);
             if(this.work != NULL){
-                //printf("dq finisher\n");
+                // if an output task has a function pointer under work, then it is a finisher task
+                // it will signal client and server to reset this slot
                 this.work(data,&this);
             }else{
+                // otherwise, push the factor in the task queue to the client
+                // set slot flag to ready
                 pthread_mutex_lock(&lock);
                 sem_wait(data->sem);
                 u8 last = data->serverflag[this.slot];
                 data->serverflag[this.slot] = SLOT_READY;
                 data->slot[this.slot] = this.value;
+                printf("Factor found: [%i] -> %u\n",this.slot,this.value);
                 sem_post(data->sem);
-                
 
+                // wait for client response about 10ms
                 int wait = 1;
                 while(data->serverflag[this.slot] == SLOT_READY){
                     usleep(wait);
@@ -372,43 +354,22 @@ int main(int argc, char** argv){
                         break;
                     }
                 }
+                // then set it back
                 sem_wait(data->sem);
                 data->serverflag[this.slot] = last;
-            }
-            //else data->serverflag[this.slot] = SLOT_FINISHED;
-                /*printf("slot %i finished in %i seconds\n",this.slot,data->state[this.slot].time);
-                data->serverflag[this.slot] = SLOT_FINISHED;
-                data->state[this.slot].load = state[this.slot].load; 
-                data->state[this.slot].time = time(NULL)-state[this.slot].time;
-                data->state[this.slot].tasks = state[this.slot].tasks;
                 sem_post(data->sem);
-
-                while(data->serverflag[this.slot] == SLOT_FINISHED){
-                    usleep(wait);
-                    wait *= 2;
-                    if(wait > 8192){
-                        printf("client no response %i\n",wait);
-                        break;
-                    }
-                
-                sem_wait(data->sem);
-                state[this.slot].tasks = 0;
-                state[this.slot].time = 0;
-                state[this.slot].load = 0;
-            }*/
+            }
             data->slot[this.slot] = 0;
-            sem_post(data->sem);
             pthread_mutex_unlock(&lock);
         }
 
         usleep(1);
     }
 
+    // cleanup
     for(int i = 0; i < POOL*SHIFTS; i++) pthread_cancel(workers[i]);
-
     queue_list_destroy(&input);
     queue_list_destroy(&output);
-    
     shm_destroy(&shm_fd,data,1);
     return 0;
 }

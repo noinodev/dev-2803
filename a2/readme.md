@@ -26,7 +26,7 @@ The programs are built with gcc under a Cygwin environment
 
 Running the program(s) 
 -   Run ./bin/server and ./bin/client from project directory
--   Server should always be started first, as it owns the shared memory. The client will segfault if started first.
+-   Server should always be started first, as it owns the shared memory. The client will segfault if started first. Didn't have time to fix that.
 
 Interacting with the program(s)
 -   On the client, you can enter an integer:
