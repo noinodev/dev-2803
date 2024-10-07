@@ -13,7 +13,7 @@ SRCCLT = $(OBJDIR)client.o $(OBJDIR)shmem.o
 
 # compiler info
 CC = gcc
-CFLAGS = -c# -Wall -Wextra -pedantic
+CFLAGS = -c -g -pthread -lpthread# -Wall -Wextra -pedantic
 
 # build all
 all: server client
@@ -30,15 +30,15 @@ client: $(SRCCLT)
 
 # object file for server
 $(OBJDIR)server.o: $(SRCDIR)server.c
-	$(CC) $(CFLAGS) $< -o $@ -pthread
+	$(CC) $(CFLAGS) $< -o $@
 
 # object file
 $(OBJDIR)client.o: $(SRCDIR)client.c
-	$(CC) $(CFLAGS) $< -o $@ -pthread
+	$(CC) $(CFLAGS) $< -o $@
 
 # shmemmy file
 $(OBJDIR)shmem.o: $(SRCDIR)shmem.c
-	$(CC) $(CFLAGS) $< -o $@ -pthread
+	$(CC) $(CFLAGS) $< -o $@
 
 clean:
 	rm -f $(OBJDIR)*.o $(OBJDIR)*.d $(LOCALSRV) $(LOCALCLT)
