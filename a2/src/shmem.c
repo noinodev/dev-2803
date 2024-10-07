@@ -15,6 +15,7 @@
 char sem_name[1+POOL*2][16] = {"/SEM_MAIN"};
 
 shm_read* shm_create(int* shm_fd, u8 owner){
+    //shm_unlink("/SHMEM");
     *shm_fd = shm_open("/SHMEM",O_CREAT|O_RDWR,0666);
     if (*shm_fd < 0) {
         perror("shm_open");
@@ -34,9 +35,12 @@ shm_read* shm_create(int* shm_fd, u8 owner){
         return NULL;
     }else printf("map ok\n");
 
-    // sempahores
     if(owner) memset(data,0,sizeof(shm_read));
-        data->sem = sem_open(sem_name[0], O_CREAT,0666,1);
+
+    // sempahores
+    data->sem = sem_open(sem_name[0], O_CREAT|O_EXCL,0666,1);
+    if(data->sem == SEM_FAILED) perror("semaphore:");
+    else printf("semaphore ok\n");
         /*if(data->sem == 0) perror("sem:");
         for(int i = 0; i < POOL; i++){
             snprintf(sem_name[1+i],sizeof(sem_name[1+i]),"/SEM_POOL_%i",i);
@@ -65,14 +69,24 @@ void shm_destroy(int* shm_fd, shm_read* data, u8 owner){
     if(owner) shm_unlink("/SHMEM");
 }
 
+const char* anim = "|/-\\";
+
 void print_bars(State* state, int bar_width, int bar_count){
     printf("\033[s");
-    int mov = 0;
-    printf("\r");
+    /*printf("\033[16A");
+                for(int i = 0; i < 6; i++){
+                    printf("\033[K");
+                    printf("\n");
+                    printf("\033[K");
+                }
+    int mov = 0;*/
+    printf("\033[H");
+    printf("\033[K");
+    printf("\n\r");
     for(int i = 0; i < bar_count; i++){
         double d = state[i].load;
-        if(d > 0){
-            if(mov == 0){
+        if(d > 0 && state[i].tasks > 0){
+            /*if(mov == 0){
                 printf("\033[16A");
                 for(int i = 0; i < 6; i++){
                     printf("\033[K");
@@ -80,15 +94,16 @@ void print_bars(State* state, int bar_width, int bar_count){
                     printf("\033[K");
                 }
             }
-            mov = 1;
-            printf("<Q%i : %is : %lf%%>",i,state[i].time/CLOCKS_PER_SEC,(d*100));
+            mov = 1;*/
+            printf(" SLOT %i - <%i/%i : %is : %lf%%> - ",i,state[i].tasks,SHIFTS,state[i].time,(d*100));
             printf("[");
             for(int j = 0; j < bar_width; j++){
                 char k = '.';
                 if(j < d*(bar_width)) k = '|';
                 printf("%c",k);
             }
-            printf("] , ");
+            printf("] %c\n",anim[time(NULL)%4]);
+            printf("\033[K");
         }
     }
     printf("\033[u");

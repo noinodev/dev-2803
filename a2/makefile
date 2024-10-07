@@ -13,7 +13,7 @@ SRCCLT = $(OBJDIR)client.o $(OBJDIR)shmem.o
 
 # compiler info
 CC = gcc
-CFLAGS = -c -pthread -lpthread# -Wall -Wextra -pedantic
+CFLAGS = -c -g -pthread -lpthread# -Wall -Wextra -pedantic
 
 # build all
 all: server client

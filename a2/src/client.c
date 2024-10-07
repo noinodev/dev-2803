@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include <sys/sem.h>
 #include <semaphore.h>
+#include <time.h>
 #include "shmem.h"
 
 //double progress[POOL];
@@ -17,9 +18,29 @@ u8 push(shm_read* data,char* buffer){
     char* endptr;
     u32 i = strtoul(buffer,&endptr,10);
     if(endptr == NULL || (*endptr != '\0' && *endptr != '\n')) return 0;
-    printf("PUSH! %i %d\n",i,*endptr);
+    //printf("PUSH! %i %d\n",i,*endptr);
+    int c = 0;
+    //printf("slot: ");
+    for(int i = 0; i < POOL; i++){
+        if(data->serverflag[i] != SLOT_EMPTY){
+            //printf("%i, ",i);
+            c++;
+        }
+    }
+    //printf("busy\n");
+
+    if(i == 0){
+        if(c > 0){
+            printf("cannot enter testing mode while server is processing\n");
+            goto end;
+        }else printf("--TESTING MODE--\n");
+    }else{
+        if(c < POOL) printf("%i enqueued\n",i);
+        else printf("server is busy\n");
+    }
     data->clientslot = i;
     data->clientflag = 1;
+    end:
     sem_post(data->sem);
     return 1;
 }
@@ -31,8 +52,8 @@ int main(int argc, char** argv){
         mutex lock 
     */
     State state[POOL] = {0,0,0};
-
     setbuf(stdout, NULL);
+    printf("\033[2J");
 
     struct pollfd fds[1];
     fds[0].fd = 0;
@@ -48,6 +69,7 @@ int main(int argc, char** argv){
     bar_count = 0;
 
     printf("Enter an integer pls\n");
+    int f = 0;
 
     for(;;){
         int ret = poll(fds,1,0);
@@ -90,19 +112,35 @@ int main(int argc, char** argv){
                 //printf("WORKING %u\n",flag);
                 state[i].load = data->state[i].load;
                 state[i].time = data->state[i].time;
+                state[i].tasks = data->state[i].tasks;
                 if(state[i].load > 0) bar_count++;
                 //printf("Factor found: [%i] -> %u\n",i,data->slot[i]);
-                if(flag == SLOT_READY){
+                if(flag == SLOT_READY && data->slot[i] > 0){
                     //sem_wait(data->sem_pool[i]);
                     sem_wait(data->sem);
-                    printf("Factor found: [%i] -> %u\n",i,data->slot[i]);
+                    f++;
+                    /*if(data->slot[i] > 0) */printf("Factor found: [%i] -> %u <%i>\n",i,data->slot[i],f);
+                    data->slot[i] = 0;
                     data->serverflag[i] = SLOT_WORKING;
                     sem_post(data->sem);
                     //sem_post(data->sem_pool[i]);
                     //pthread_cond_signal(&data->slotcond[i]);
                 }
+                if(flag == SLOT_FINISHED){
+                    //sem_wait(data->sem_pool[i]);
+                    //sem_wait(data->sem);
+                    printf("Finished processing for slot %u in %i seconds\n",i,state[i].time);
+                    data->serverflag[i] = SLOT_EMPTY;
+                    //sem_post(data->sem);
+                    state[i].load = 0;
+                    state[i].time = 0;
+                    state[i].tasks = 0;
+                    //sem_post(data->sem_pool[i]);
+                    //pthread_cond_signal(&data->slotcond[i]);
+                }
                 //sem_post(data->sem);
             }
+            
 
             //pthread_mutex_unlock(&data->slotlock[i]);
         }
@@ -111,7 +149,7 @@ int main(int argc, char** argv){
 
         //pthread_mutex_lock(&lock);
         int bar_width = 64;
-        if(bar_count > 0) print_bars(state,bar_width/(bar_count),POOL);
+        /*if(bar_count > 0) */print_bars(state,bar_width/*/(bar_count > 0? bar_count:1)*/,POOL);
         //pthread_mutex_unlock(&lock);
         usleep(10);
     }

@@ -23,12 +23,14 @@
 #define SLOT_EMPTY 0
 #define SLOT_WORKING 1
 #define SLOT_READY 2
+#define SLOT_FINISHED 3
 #define SLOT_BUSY 255
 
 typedef struct State{
     double load;
     int time;
     int tasks;
+    int tasks_total;
 } State;
 
 // should make it clear that i could NOT get semaphores to compile in cygwin, so im using shmem mutexes
